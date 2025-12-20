@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from '@notionhq/client';
+import { markdownToBlocks } from '@/lib/notion-utils';
 
 export async function POST(req: NextRequest) {
     try {
@@ -18,13 +19,16 @@ export async function POST(req: NextRequest) {
         console.log('[Notion] Saving to DB:', dbId);
 
         // Initialize properties with the required Title field (Name)
+        // Use "company" if available, otherwise "title"
+        const mainTitle = properties.company || properties.title || 'Unknown Company';
+
         const notionProperties: any = {
             // "Name" is the Primary Title column (Internal ID: title)
             'Name': {
                 title: [
                     {
                         text: {
-                            content: properties.title || 'Unknown Company'
+                            content: mainTitle
                         }
                     }
                 ]
@@ -48,8 +52,7 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        // "Job Title" (Text column, formerly 'title')
-        // Using "Job Title" as confirmed by schema check, mapping from frontend "title"
+        // "Job Title"
         if (properties.title) {
             notionProperties['Job Title'] = {
                 rich_text: [{ text: { content: properties.title } }]
@@ -61,9 +64,12 @@ export async function POST(req: NextRequest) {
         addProp('salary_max', properties.salary_max, 'number');
         addProp('commute_min', properties.commute_time, 'number');
         addProp('age_limit', properties.age_limit || 0, 'number');
+        addProp('employees_count', properties.employees_count, 'number');
+        addProp('average_age', properties.average_age, 'number');
 
         // URL
-        addProp('url', url, 'url');
+        // Notion API requires a valid URL or null, explicitly not an empty string
+        addProp('url', url || null, 'url');
 
         // Selects with defaults
         if (properties.status) addProp('status', properties.status, 'select');
@@ -110,25 +116,13 @@ export async function POST(req: NextRequest) {
 
         console.log('[Notion] Sending properties:', JSON.stringify(notionProperties, null, 2));
 
+        // Generate blocks from markdown
+        const children = markdown_content ? markdownToBlocks(markdown_content) : [];
+
         const response = await notion.pages.create({
             parent: { database_id: dbId },
             properties: notionProperties,
-            children: markdown_content ? [
-                {
-                    object: 'block',
-                    type: 'paragraph',
-                    paragraph: {
-                        rich_text: [
-                            {
-                                type: 'text',
-                                text: {
-                                    content: markdown_content.substring(0, 2000)
-                                },
-                            },
-                        ],
-                    },
-                },
-            ] : [],
+            children: children
         });
 
         console.log('[Notion] Success! Page ID:', response.id);

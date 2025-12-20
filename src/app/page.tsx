@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import JobForm from '@/components/JobForm';
 import UserProfileForm from '@/components/UserProfileForm';
 import ResumeManager from '@/components/ResumeManager';
@@ -11,9 +11,38 @@ export default function Home() {
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [userProfile, setUserProfile] = useState('');
+  const [resumeName, setResumeName] = useState('');
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  // Load default resume on mount
+  useEffect(() => {
+    // Check if we already have a profile set, if so, skip (or maybe we specifically want to load default if empty)
+    if (userProfile) return;
+
+    const fetchDefaultResume = async () => {
+      try {
+        const res = await fetch('/api/resumes');
+        if (!res.ok) return;
+        const resumes: any[] = await res.json();
+
+        // Find Main resume
+        const mainResume = resumes.find((r: any) => r.type === 'main');
+        // Fallback to first if no main, or just empty
+        const defaultResume = mainResume || resumes[0];
+
+        if (defaultResume && defaultResume.content) {
+          setUserProfile(defaultResume.content);
+          setResumeName(defaultResume.name || 'Main Resume');
+        }
+      } catch (e) {
+        console.error('Failed to load default resume', e);
+      }
+    };
+
+    fetchDefaultResume();
+  }, [userProfile]);
 
   const handleAnalyze = async (url: string, manualText?: string) => {
     setAnalyzing(true);
@@ -22,7 +51,15 @@ export default function Home() {
 
     try {
       let jobText = manualText || '';
+
       let targetUrl = url;
+      // User requested to keep parameters, so we skip cleaning.
+      // try {
+      //   if(url) {
+      //       const u = new URL(url);
+      //       targetUrl = `${u.origin}${u.pathname}`; 
+      //   }
+      // } catch (e) { ... }
 
       // 1. Scrape if no manual text
       if (!jobText && url) {
@@ -69,7 +106,11 @@ export default function Home() {
       }
 
       const info = await analyzeRes.json();
-      setAnalysisResult({ ...info, url: targetUrl });
+      const resultData = { ...info, url: targetUrl };
+      setAnalysisResult(resultData);
+
+      // Auto-save
+      await handleSave(resultData);
 
     } catch (e: any) {
       setError(e.message);
@@ -78,14 +119,16 @@ export default function Home() {
     }
   };
 
-  const handleSave = async () => {
-    if (!analysisResult) return;
+  const handleSave = async (dataToSave?: any) => {
+    const targetData = dataToSave || analysisResult;
+    if (!targetData) return;
+
     setSaving(true);
     try {
       const saveRes = await fetch('/api/notion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(analysisResult),
+        body: JSON.stringify(targetData),
       });
 
       if (!saveRes.ok) {
@@ -93,11 +136,15 @@ export default function Home() {
         throw new Error(errJson.error || 'Save failed');
       }
 
-      alert('Notionへの保存が完了しました！🎉');
-      setAnalysisResult(null); // Reset or Keep? Reset is better for next.
+      // Success notification (Toast/Alert) - Keeping it simple or maybe just subtle
+      // alert('Notionへの保存が完了しました！🎉'); 
+      // Auto-save shouldn't interrupt with alert ideally, but user asked for functionality.
+      // Let's use a console log or local UI state to show compatibility.
+      // For now, removing alert to make it smooth, maybe just set a "Saved" flag if needed.
+      console.log('Auto-saved to Notion');
 
     } catch (e: any) {
-      alert(`保存に失敗しました: ${e.message}`);
+      setError(`保存エラー: ${e.message}`); // Show save error in the main error box
     } finally {
       setSaving(false);
     }
@@ -128,7 +175,11 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Input Area */}
           <div className="lg:col-span-2 space-y-8">
-            <JobForm onAnalyze={handleAnalyze} isLoading={analyzing} />
+            <JobForm
+              onAnalyze={handleAnalyze}
+              isLoading={analyzing}
+              resumeContent={userProfile}
+            />
 
             {/* Result Preview */}
             {analysisResult && (
