@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Jobscope (ジョブスコープ) 🔭
 
-## Getting Started
+**AIを活用した高度な求人・履歴書管理アプリケーション**
 
-First, run the development server:
+Jobscopeは、転職活動における「履歴書の管理」と「求人ごとの最適化」を効率化するために開発されました。
+Base(事実)の履歴書から、企業ごとに特化したBranch(派生)を作成し、AIを使って求人票にマッチした志望動機や自己PRを自動生成します。
+
+## ✨ 主な機能
+
+- **🌳 履歴書のツリー管理 (Resume Tree)**
+  - 「事実ベース(MAIN)」の履歴書を親として、企業ごとに「派生(BRANCH)」を作成
+  - 履歴書のバージョン管理 (v1, v2...) が可能
+- **🤖 求人情報のAI解析**
+  - 求人サイトのURLを入力するだけで、募集要項を自動抽出
+  - 履歴書とのマッチング度、不足スキル、推奨されるアピールポイントをAIが診断
+- **📝 Notion連携**
+  - 解析した求人データとステータスをNotionデータベースにワンクリックで保存
+- **📄 マークダウンプレビュー**
+  - 作成した履歴書をリアルタイムでプレビュー・コピー可能
+
+## 🚀 セットアップ
+
+### 必要条件
+- Node.js 18+
+- Notion アカウント (データベース連携用)
+
+### インストール
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/165cm/Jobscope.git
+cd Jobscope
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 環境設定
+`.env.local` ファイルを作成し、以下の変数を設定してください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Notion API
+NOTION_API_KEY=secret_xxxxxxxx
+NOTION_DATABASE_ID=xxxxxxxx
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# OpenAI API (AI解析用)
+OPENAI_API_KEY=sk-xxxxxxxx
+```
 
-## Learn More
+### 起動
+```bash
+npm run dev
+```
+`http://localhost:3000` にアクセスしてください。
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📖 マニュアル
+詳細な使い方は [Walkthrough](docs/walkthrough.md) を参照してください。

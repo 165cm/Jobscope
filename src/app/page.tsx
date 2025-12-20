@@ -1,65 +1,162 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from 'react';
+import JobForm from '@/components/JobForm';
+import UserProfileForm from '@/components/UserProfileForm';
+import ResumeManager from '@/components/ResumeManager';
+import Preview from '@/components/Preview';
+import { LayoutDashboard } from 'lucide-react';
 
 export default function Home() {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [userProfile, setUserProfile] = useState('');
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  const handleAnalyze = async (url: string, manualText?: string) => {
+    setAnalyzing(true);
+    setError(null);
+    setAnalysisResult(null);
+
+    try {
+      let jobText = manualText || '';
+      let targetUrl = url;
+
+      // 1. Scrape if no manual text
+      if (!jobText && url) {
+        try {
+          const scrapeRes = await fetch('/api/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+
+          if (!scrapeRes.ok) {
+            const errJson = await scrapeRes.json();
+            // If scrape fails, we don't throw immediately if we want to encourage manual input,
+            // but here we are in the "Automatic" flow.
+            // We throw to show error.
+            throw new Error(errJson.error || 'Scraping failed');
+          }
+
+          const scrapeData = await scrapeRes.json();
+          jobText = scrapeData.text;
+
+        } catch (e: any) {
+          console.error('Scrape error:', e);
+          // Show error but allow user to continue if they provide manual text next time?
+          // For now just error out.
+          throw new Error(`求人票の取得に失敗しました: ${e.message}。手動入力機能を使用してください。`);
+        }
+      }
+
+      // 2. Analyze
+      const analyzeRes = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobDescription: jobText,
+          userProfile: userProfile,
+          url: targetUrl
+        }),
+      });
+
+      if (!analyzeRes.ok) {
+        const errJson = await analyzeRes.json();
+        throw new Error(errJson.error || 'Analysis failed');
+      }
+
+      const info = await analyzeRes.json();
+      setAnalysisResult({ ...info, url: targetUrl });
+
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!analysisResult) return;
+    setSaving(true);
+    try {
+      const saveRes = await fetch('/api/notion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(analysisResult),
+      });
+
+      if (!saveRes.ok) {
+        const errJson = await saveRes.json();
+        throw new Error(errJson.error || 'Save failed');
+      }
+
+      alert('Notionへの保存が完了しました！🎉');
+      setAnalysisResult(null); // Reset or Keep? Reset is better for next.
+
+    } catch (e: any) {
+      alert(`保存に失敗しました: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
+          <div className="bg-indigo-600 p-2 rounded-lg text-white">
+            <LayoutDashboard className="w-5 h-5" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-800 tracking-tight">Jobscope</h1>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-100 flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-sm underline hover:text-red-800">閉じる</button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Input Area */}
+          <div className="lg:col-span-2 space-y-8">
+            <JobForm onAnalyze={handleAnalyze} isLoading={analyzing} />
+
+            {/* Result Preview */}
+            {analysisResult && (
+              <Preview data={analysisResult} onSave={handleSave} isSaving={saving} />
+            )}
+          </div>
+
+          {/* Sidebar (Profile & Resumes) */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="sticky top-24 space-y-6">
+              {/* 1. Resume Manager (Version Control) */}
+              <ResumeManager
+                onSelect={(content: string, name: string) => {
+                  setUserProfile(content);
+                }}
+                jobDescription={analysisResult?.markdown_content || analysisResult?.jobDescription}
+                reloadTrigger={reloadTrigger}
+              />
+
+              {/* 2. Manual Edit/View (UserProfileForm) */}
+              <UserProfileForm
+                onProfileChange={setUserProfile}
+                onUploadComplete={() => setReloadTrigger(prev => prev + 1)}
+              />
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

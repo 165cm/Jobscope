@@ -1,0 +1,2 @@
+Name,action_date,age_limit,autonomy,category,commute_min,employment,feedback,location,long_commute,match,memo,overwork,remote,salary_max,salary_min,side_job,skills,source,status,teamwork,Job Title,url
+サンプル株式会社,2025-01-15,45,TRUE,marketing,30,fulltime,TRUE,渋谷駅徒歩5分,FALSE,excellent,副業OKで魅力的,FALSE,hybrid,700,500,ok,"SEO,analytics",doda,searching,TRUE,Webマーケティングマネージャー,https://example.com/job1
