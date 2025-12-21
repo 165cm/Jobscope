@@ -23,8 +23,8 @@ const FIELD_ORDER = [
     'autonomy', 'feedback', 'teamwork', 'long_commute', 'overwork',
 ];
 
-// Fields already shown in the header or elsewhere (exclude from dynamic list)
-const EXCLUDED_FIELDS = ['match', 'Name', 'Job Title', 'url', 'status', 'memo', 'Rating', 'side_job', 'action_date'];
+// Fields already shown in the header (exclude from dynamic list to avoid duplication)
+const EXCLUDED_FIELDS = ['match'];
 
 // Helper function to get value with case-insensitive key lookup
 function getValue(values: Record<string, any>, propName: string): any {
