@@ -155,25 +155,41 @@ function sanitizeAnalyzeResult(result: AnalyzeResult): AnalyzeResult {
 // Helper to extract primitive value from potential Notion object structure
 function flattenValue(value: any): any {
     if (value === null || value === undefined) return null;
+
+    // If primitive, return as is
     if (typeof value !== 'object') return value;
+
+    // If array
     if (Array.isArray(value)) {
+        if (value.length === 0) return [];
         // If array of strings, keep it (e.g. skills)
-        if (value.length > 0 && typeof value[0] === 'string') return value;
-        // If array of objects (multi_select), map to names
-        if (value.length > 0 && value[0].name) return value.map((v: any) => v.name);
-        return value;
+        if (typeof value[0] === 'string') return value;
+        // If array of objects, try to map to string representation
+        return value.map(v => flattenValue(v)).filter(v => v !== null && v !== '');
     }
 
-    // Handle common Notion property types
-    if (value.rich_text && Array.isArray(value.rich_text)) {
-        return value.rich_text.map((t: any) => t.plain_text || t.text?.content || '').join('');
-    }
-    if (value.title && Array.isArray(value.title)) {
-        return value.title.map((t: any) => t.plain_text || t.text?.content || '').join('');
-    }
-    if (value.select) return value.select.name || '';
-    if (value.multi_select) return value.multi_select.map((o: any) => o.name);
-    if (value.files) return ''; // ignore files
+    // Handle common Notion property types & Hallucinated structures
+    // Notion "rich_text" or "title" array wrapper (usually handled by Array check above if it's the value itself, but sometimes it's prop.rich_text)
+    if (value.rich_text) return flattenValue(value.rich_text);
+    if (value.title) return flattenValue(value.title);
+
+    // Select/Multi-Select
+    if (value.select) return flattenValue(value.select);
+    if (value.multi_select) return flattenValue(value.multi_select);
+
+    // Common keys used in object wrappers
+    if (typeof value.name === 'string') return value.name;
+    if (typeof value.content === 'string') return value.content;
+    if (typeof value.text === 'string') return value.text;
+    if (typeof value.title === 'string') return value.title; // handle {title: "..."}
+    if (typeof value.label === 'string') return value.label;
+    if (typeof value.value === 'string') return value.value;
+    if (typeof value.id === 'string' && Object.keys(value).length === 1) return value.id; // rare but possible
+
+    // Nested 'text' object in Notion (text: { content: "..." })
+    if (value.text && typeof value.text === 'object') return flattenValue(value.text);
+
+    // Specific types
     if (value.number !== undefined) return value.number;
     if (value.checkbox !== undefined) return value.checkbox;
     if (value.url !== undefined) return value.url;
@@ -181,9 +197,9 @@ function flattenValue(value: any): any {
     if (value.phone_number !== undefined) return value.phone_number;
     if (value.date) return value.date.start || '';
 
-    // If it's just a random object, try specific keys or stringify
-    if (value.name) return value.name;
-    if (value.content) return value.content;
+    // If we can't find a string, return stringified (better than [object Object])
+    // But check if empty object
+    if (Object.keys(value).length === 0) return null;
 
-    return JSON.stringify(value); // Last resort
+    return JSON.stringify(value);
 }
