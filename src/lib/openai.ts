@@ -45,6 +45,22 @@ export const DEFAULT_LOGIC = `Boolean flags - detect from job description keywor
 
 Output EXACTLY this JSON format:`;
 
+export const DEFAULT_CONTENT_PROMPT = `Generate a structured markdown summary in the 'markdown_content' field.
+Recommended structure:
+# Job Title
+## 🏢 Company Overview
+Brief introduction.
+
+## 📝 Job Description
+Summary of responsibilities.
+
+## 💡 Requirements
+- Must have
+- Nice to have
+
+## 🎁 Benefits/Conditions
+Salary, location, remote work, etc.`;
+
 export const DEFAULT_PROMPT = `${DEFAULT_ROLE}
 
 Extract these fields:

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 import './index.css';
-import { DEFAULT_ROLE, DEFAULT_LOGIC } from './lib/openai';
+import { DEFAULT_ROLE, DEFAULT_LOGIC, DEFAULT_CONTENT_PROMPT } from './lib/openai';
 import { fetchNotionSchema, saveLocalSchema, generatePromptFromSchema, DEFAULT_PROPERTY_INSTRUCTIONS, type NotionSchema } from './lib/schema';
 
 function Options() {
@@ -13,6 +13,7 @@ function Options() {
     // Split Prompt States
     const [promptRole, setPromptRole] = useState(DEFAULT_ROLE);
     const [promptLogic, setPromptLogic] = useState(DEFAULT_LOGIC);
+    const [promptContent, setPromptContent] = useState(DEFAULT_CONTENT_PROMPT);
     const [localSchema, setLocalSchema] = useState<NotionSchema | null>(null);
     const [propertyInstructions, setPropertyInstructions] = useState<Record<string, string>>({});
     const [showPreview, setShowPreview] = useState(false);
@@ -25,7 +26,7 @@ function Options() {
     useEffect(() => {
         // Load settings
         chrome.storage.local.get(
-            ['openai_api_key', 'notion_api_key', 'notion_db_id', 'prompt_role', 'prompt_logic', 'notion_schema', 'prompt_instructions'],
+            ['openai_api_key', 'notion_api_key', 'notion_db_id', 'prompt_role', 'prompt_logic', 'prompt_content', 'notion_schema', 'prompt_instructions'],
             (result) => {
                 if (result.openai_api_key) setOpenAIKey(result.openai_api_key as string);
                 if (result.notion_api_key) setNotionKey(result.notion_api_key as string);
@@ -33,6 +34,7 @@ function Options() {
 
                 if (result.prompt_role) setPromptRole(result.prompt_role as string);
                 if (result.prompt_logic) setPromptLogic(result.prompt_logic as string);
+                if (result.prompt_content) setPromptContent(result.prompt_content as string);
 
                 if (result.notion_schema) {
                     setLocalSchema(result.notion_schema as NotionSchema);
@@ -54,6 +56,7 @@ function Options() {
                 notion_db_id: notionDbId,
                 prompt_role: promptRole,
                 prompt_logic: promptLogic,
+                prompt_content: promptContent,
                 prompt_instructions: propertyInstructions,
             },
             () => {
@@ -65,9 +68,10 @@ function Options() {
     };
 
     const resetPrompt = () => {
-        if (confirm('プロンプト設定（役割・ロジック・抽出指示）をすべてデフォルトに戻しますか？')) {
+        if (confirm('プロンプト設定（役割・ロジック・抽出指示・コンテンツルール）をすべてデフォルトに戻しますか？')) {
             setPromptRole(DEFAULT_ROLE);
             setPromptLogic(DEFAULT_LOGIC);
+            setPromptContent(DEFAULT_CONTENT_PROMPT);
             setPropertyInstructions({ ...DEFAULT_PROPERTY_INSTRUCTIONS });
             setStatus('プロンプトをリセットしました');
             setTimeout(() => setStatus(''), 2000);
@@ -355,6 +359,22 @@ function Options() {
                             <textarea
                                 value={promptLogic}
                                 onChange={(e) => setPromptLogic(e.target.value)}
+                                rows={6}
+                                className="w-full px-3 py-2 border border-blue-200 rounded-md text-xs font-mono text-gray-800 focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            />
+                        </div>
+
+                        {/* 4. Content */}
+                        <div className="space-y-2">
+                            <label className="block text-sm font-bold text-gray-700">
+                                📝 コンテンツ生成ルール
+                            </label>
+                            <p className="text-xs text-gray-500">
+                                Markdownでの要約形式を定義します（見出し、箇条書きなど）。
+                            </p>
+                            <textarea
+                                value={promptContent}
+                                onChange={(e) => setPromptContent(e.target.value)}
                                 rows={6}
                                 className="w-full px-3 py-2 border border-blue-200 rounded-md text-xs font-mono text-gray-800 focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
                             />

@@ -14,11 +14,9 @@ function ensureString(value: any): string {
     if (typeof value === 'boolean') return String(value);
 
     if (Array.isArray(value)) {
-        // Join array elements into a single string
         return value.map(v => ensureString(v)).join(', ');
     }
     if (typeof value === 'object') {
-        // Try common string-like properties
         if (value.name) return value.name;
         if (value.content) return value.content;
         if (value.text) return ensureString(value.text);
@@ -28,12 +26,61 @@ function ensureString(value: any): string {
     return String(value);
 }
 
+// Convert markdown string to Notion Blocks
+function markdownToBlocks(markdown: string) {
+    const blocks = [];
+    const lines = markdown.split('\n');
+
+    for (const line of lines) {
+        // Skip purely empty lines unless we want spacers, but Notion handles spacing well
+        if (line.trim() === '') continue;
+
+        // Truncate overly long lines to avoid API errors (2000 chars limit per text object)
+        const safeLine = line.length > 2000 ? line.substring(0, 2000) + '...' : line;
+
+        if (safeLine.startsWith('# ')) {
+            blocks.push({
+                object: 'block', type: 'heading_1',
+                heading_1: { rich_text: [{ type: 'text', text: { content: safeLine.substring(2) } }] }
+            });
+        } else if (safeLine.startsWith('## ')) {
+            blocks.push({
+                object: 'block', type: 'heading_2',
+                heading_2: { rich_text: [{ type: 'text', text: { content: safeLine.substring(3) } }] }
+            });
+        } else if (safeLine.startsWith('### ')) {
+            blocks.push({
+                object: 'block', type: 'heading_3',
+                heading_3: { rich_text: [{ type: 'text', text: { content: safeLine.substring(4) } }] }
+            });
+        } else if (safeLine.startsWith('- ') || safeLine.startsWith('* ')) {
+            blocks.push({
+                object: 'block', type: 'bulleted_list_item',
+                bulleted_list_item: { rich_text: [{ type: 'text', text: { content: safeLine.substring(2) } }] }
+            });
+        } else if (safeLine.match(/^[0-9]+\. /)) {
+            // Numbered list
+            const content = safeLine.replace(/^[0-9]+\. /, '');
+            blocks.push({
+                object: 'block', type: 'numbered_list_item',
+                numbered_list_item: { rich_text: [{ type: 'text', text: { content: content } }] }
+            });
+        } else {
+            blocks.push({
+                object: 'block', type: 'paragraph',
+                paragraph: { rich_text: [{ type: 'text', text: { content: safeLine } }] }
+            });
+        }
+    }
+    // Cap blocks to avoid payload limits (API limit is 100 children per request, but let's be safe)
+    return blocks.slice(0, 90);
+}
+
 // Map AnalyzeResult properties to Notion API payload dynamically based on schema
 function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string) {
     const notionProperties: any = {};
     const aiProps = data.properties;
 
-    // Mapping for default AI keys to potential Notion property names
     const ALIAS_MAP: Record<string, string[]> = {
         "Name": ["company", "Company", "会社名", "企業名"],
         "Job Title": ["title", "Title", "role", "Role", "役職", "職種"],
@@ -49,50 +96,40 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
         "Web": ["site", "web", "website", "hp", "company_url", "会社HP"],
     };
 
-    // Helper to find value in aiProps
     const getValue = (notionPropName: string) => {
-        // 1. Try direct match
         if (aiProps[notionPropName] !== undefined) return aiProps[notionPropName];
-
-        // 2. Try aliases
         if (ALIAS_MAP[notionPropName]) {
             for (const alias of ALIAS_MAP[notionPropName]) {
                 if (aiProps[alias] !== undefined) return aiProps[alias];
             }
         }
-
-        // 3. Try standard defaults if name is generic (case insensitive match)
         const lowerName = notionPropName.toLowerCase();
         for (const key of Object.keys(aiProps)) {
             if (key.toLowerCase() === lowerName) return aiProps[key];
         }
-
         return undefined;
     };
 
     for (const prop of schema.properties) {
-        // Skip read-only properties
         if (['created_time', 'last_edited_time', 'created_by', 'last_edited_by', 'formula', 'rollup'].includes(prop.type)) {
             continue;
         }
 
         const lowerName = prop.name.toLowerCase();
 
-        // [Logic 1] Force Job Post URL for specific named URL properties
-        // If type is URL and name implies job link/source, use the browser's current URL (jobUrl)
+        // [Logic 1] Force Job Post URL
         if (prop.type === 'url' && (
             lowerName === 'url' ||
             lowerName === 'job url' ||
             lowerName === 'link' ||
             lowerName === 'source url' ||
-            lowerName === 'source' // user specific request: Source -> Job Info (URL)
+            lowerName === 'source'
         )) {
             notionProperties[prop.name] = { url: jobUrl };
             continue;
         }
 
-        // [Logic 2] Company Website special handling
-        // If type is URL and name implies company site, look for extracted website
+        // [Logic 2] Company Website
         if (prop.type === 'url' && (
             lowerName === 'web' ||
             lowerName === 'website' ||
@@ -100,19 +137,15 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
             lowerName === 'company site' ||
             lowerName === '会社hp'
         )) {
-            const siteVal = getValue(prop.name); // Will try aliases like 'site', 'web'
+            const siteVal = getValue(prop.name);
             notionProperties[prop.name] = { url: ensureString(siteVal) || null };
             continue;
         }
 
         let value = getValue(prop.name);
 
-        // Fallback for URL property if generic 'url' wasn't caught above but is type url
-        if ((value === undefined || value === null) && prop.type === 'url') {
-            // If property is named generic 'url' but not caught above (e.g. capitalized differently?), use jobUrl
-            if (lowerName === 'url') {
-                value = jobUrl;
-            }
+        if ((value === undefined || value === null) && prop.type === 'url' && lowerName === 'url') {
+            value = jobUrl;
         }
 
         if (value === undefined) continue;
@@ -120,29 +153,19 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
         try {
             switch (prop.type) {
                 case 'title':
-                    notionProperties[prop.name] = {
-                        title: [{ text: { content: ensureString(value) } }]
-                    };
+                    notionProperties[prop.name] = { title: [{ text: { content: ensureString(value) } }] };
                     break;
                 case 'rich_text':
-                    notionProperties[prop.name] = {
-                        rich_text: [{ text: { content: ensureString(value) } }]
-                    };
+                    notionProperties[prop.name] = { rich_text: [{ text: { content: ensureString(value) } }] };
                     break;
                 case 'number':
                     let num = value;
-                    if (typeof num === 'string') {
-                        num = parseFloat(num.replace(/[^0-9.-]/g, ''));
-                    }
-                    notionProperties[prop.name] = {
-                        number: isNaN(num) || num === '' ? null : Number(num)
-                    };
+                    if (typeof num === 'string') num = parseFloat(num.replace(/[^0-9.-]/g, ''));
+                    notionProperties[prop.name] = { number: isNaN(num) || num === '' ? null : Number(num) };
                     break;
                 case 'select':
                     const strValSelect = ensureString(value);
-                    if (strValSelect) {
-                        notionProperties[prop.name] = { select: { name: strValSelect } };
-                    }
+                    if (strValSelect) notionProperties[prop.name] = { select: { name: strValSelect } };
                     break;
                 case 'multi_select':
                     const vals = Array.isArray(value) ? value : (value ? [value] : []);
@@ -165,9 +188,7 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                     const dateStr = ensureString(value);
                     if (dateStr) {
                         const d = new Date(dateStr);
-                        if (!isNaN(d.getTime())) {
-                            notionProperties[prop.name] = { date: { start: d.toISOString().split('T')[0] } };
-                        }
+                        if (!isNaN(d.getTime())) notionProperties[prop.name] = { date: { start: d.toISOString().split('T')[0] } };
                     }
                     break;
             }
@@ -189,16 +210,19 @@ export async function saveJobToNotion(
     const url = 'https://api.notion.com/v1/pages';
     const properties = mapProperties(data, schema, jobUrl);
 
-    // Fallback if Title is missing
     const titleProp = schema.properties.find(p => p.type === 'title');
     if (titleProp && !properties[titleProp.name]) {
         const fallbackTitle = data.properties.company || data.properties.title || "Untitled Job";
         properties[titleProp.name] = { title: [{ text: { content: ensureString(fallbackTitle) } }] };
     }
 
+    // Include children (content)
+    const children = data.markdown_content ? markdownToBlocks(data.markdown_content) : [];
+
     const payload = {
         parent: { database_id: databaseId },
         properties: properties,
+        children: children.length > 0 ? children : undefined
     };
 
     const response = await fetch(url, {
@@ -230,6 +254,7 @@ export async function updateJobInNotion(
     const url = `https://api.notion.com/v1/pages/${pageId}`;
     const properties = mapProperties(data, schema, jobUrl);
 
+    // Update properties
     const payload = {
         properties: properties,
     };
@@ -250,5 +275,9 @@ export async function updateJobInNotion(
     }
 
     const result = await response.json();
+
+    // Optionally append content? For now we don't automatedly append content on update to prevent duplication.
+    // User can manually create new page for re-analysis or we can implement explicit 'append' flag later.
+
     return { url: result.url, id: result.id };
 }

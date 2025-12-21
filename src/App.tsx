@@ -69,13 +69,13 @@ function App() {
     setSavedPageId(null);
 
     try {
-      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt', 'prompt_role', 'prompt_logic', 'prompt_instructions']);
+      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt', 'prompt_role', 'prompt_logic', 'prompt_content', 'prompt_instructions']);
       const apiKey = storage.openai_api_key;
       const userProfile = (storage.user_profile as string) || "";
 
       // Prompt Assembly Logic
       // 1. Backward compatibility: If specific prompts are missing but custom_prompt exists, use it.
-      // 2. Otherwise assemble: Role + Schema(generated) + Logic
+      // 2. Otherwise assemble: Role + Schema(generated) + Content + Logic
 
       let finalPrompt = storage.custom_prompt as string; // Default fallback
 
@@ -83,22 +83,17 @@ function App() {
       if (storage.prompt_role || storage.prompt_logic || !finalPrompt) {
         const role = storage.prompt_role || (await import('./lib/openai')).DEFAULT_ROLE;
         const logic = storage.prompt_logic || (await import('./lib/openai')).DEFAULT_LOGIC;
+        const content = storage.prompt_content || (await import('./lib/openai')).DEFAULT_CONTENT_PROMPT;
         const instructions = (storage.prompt_instructions as Record<string, string>) || {};
 
         let schemaPrompt = "";
         if (schema) {
           schemaPrompt = generatePromptFromSchema(schema, instructions);
         } else {
-          // Fallback if no schema synced yet? 
-          // Using generatePromptFromSchema with empty/dummy might be bad.
-          // We should probably rely on DEFAULT_PROMPT structure if no schema is found, 
-          // BUT we want to enforce the component structure.
-          // Let's assume if no schema, we skip the middle part or use a warning?
-          // Ideally user MUST sync schema.
           console.warn("No Notion Schema found. Prompt might be incomplete.");
         }
 
-        finalPrompt = `${role}\n\n${schemaPrompt}\n\n${logic}`;
+        finalPrompt = `${role}\n\n${schemaPrompt}\n\n${content}\n\n${logic}`;
       }
 
       const apiKeyStr = apiKey as string;
