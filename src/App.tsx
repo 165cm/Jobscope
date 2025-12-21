@@ -145,6 +145,13 @@ function App() {
     setLoading(true);
     setError(null);
 
+    // 1. Ensure schema is loaded
+    if (!schema) {
+      setError("Notion Schema not synced. Please go to Settings (⚙️) and click 'Notionスキーマ同期'.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const storage = await chrome.storage.local.get(['notion_api_key', 'notion_db_id']);
       const apiKey = storage.notion_api_key;
@@ -156,9 +163,9 @@ function App() {
 
       let notionRes;
       if (savedPageId) {
-        notionRes = await updateJobInNotion(savedPageId, result, apiKey as string, (url || "") as string);
+        notionRes = await updateJobInNotion(savedPageId, result, apiKey as string, schema, (url || "") as string);
       } else {
-        notionRes = await saveJobToNotion(result, apiKey as string, dbId as string, (url || "") as string);
+        notionRes = await saveJobToNotion(result, apiKey as string, dbId as string, schema, (url || "") as string);
         setSavedPageId(notionRes.id);
       }
 
@@ -166,6 +173,7 @@ function App() {
       setSuccessMsg(savedPageId ? "Updated!" : "Saved!");
 
     } catch (err: any) {
+      console.error(err);
       setError(err.message || "Failed to save to Notion");
     } finally {
       setLoading(false);

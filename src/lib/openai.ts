@@ -2,6 +2,7 @@ export const MODEL_NAME = "gpt-4o-mini";
 
 export interface AnalyzeResult {
     properties: {
+        [key: string]: any; // Allow dynamic properties from Notion schema
         company: string;
         title: string;
         site: string;
