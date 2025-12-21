@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Download, Upload, FileText } from 'lucide-react';
+import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Download, Upload, FileText, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 import './index.css';
 import { DEFAULT_ROLE, DEFAULT_LOGIC } from './lib/openai';
-import { fetchNotionSchema, saveLocalSchema, DEFAULT_PROPERTY_INSTRUCTIONS, type NotionSchema } from './lib/schema';
+import { fetchNotionSchema, saveLocalSchema, generatePromptFromSchema, DEFAULT_PROPERTY_INSTRUCTIONS, type NotionSchema } from './lib/schema';
 import { saveConfigToPage, loadConfigFromPage, type JobscopeConfig } from './lib/notion';
 
 function Options() {
@@ -17,6 +17,7 @@ function Options() {
     const [promptLogic, setPromptLogic] = useState(DEFAULT_LOGIC);
     const [localSchema, setLocalSchema] = useState<NotionSchema | null>(null);
     const [propertyInstructions, setPropertyInstructions] = useState<Record<string, string>>({});
+    const [showPreview, setShowPreview] = useState(false);
 
     const [status, setStatus] = useState('');
     const [error, setError] = useState('');
@@ -131,9 +132,6 @@ function Options() {
                 notion_config_page_url: configPageUrl // remember URL
             });
 
-            // Reload instructions state properly if partial update
-            // (The setPropertyInstructions above already merges default, so it is safer)
-
             setStatus('Notionから設定を復元(Pull)しました！');
         } catch (err: any) {
             console.error(err);
@@ -168,7 +166,6 @@ function Options() {
             const schema = await fetchNotionSchema(notionKey, notionDbId);
             await saveLocalSchema(schema);
             setLocalSchema(schema);
-            // Also reset/merge new instructions? simpler to keep current ones
             setStatus('Notionスキーマを同期しました！');
         } catch (err: any) {
             setError(err.message || 'スキーマ同期に失敗しました');
@@ -304,7 +301,7 @@ function Options() {
                             </button>
                         </div>
 
-                        {/* Config Push/Pull - New Section */}
+                        {/* Config Push/Pull */}
                         <div className="mt-4 p-4 bg-purple-50 rounded-lg space-y-3">
                             <div>
                                 <h4 className="text-sm font-bold text-purple-800 flex items-center gap-2">
@@ -443,6 +440,29 @@ function Options() {
                                             ))}
                                         </tbody>
                                     </table>
+
+                                    {/* Preview Section */}
+                                    <div className="bg-gray-50 border-t border-gray-200 p-2">
+                                        <button
+                                            onClick={() => setShowPreview(!showPreview)}
+                                            className="w-full flex items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium py-1"
+                                        >
+                                            {showPreview ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                            <Eye size={14} />
+                                            AIに送信されるスキーマ指示を確認する
+                                        </button>
+
+                                        {showPreview && (
+                                            <div className="mt-2 p-2">
+                                                <p className="text-[10px] text-gray-500 mb-1">
+                                                    ※ 以下のテキストが、プロパティの定義としてAIに送信されます。自動的にOptionsが含まれていることを確認できます。
+                                                </p>
+                                                <div className="text-[10px] font-mono text-gray-700 whitespace-pre-wrap h-40 overflow-y-auto border border-gray-200 bg-white p-2 rounded shadow-inner">
+                                                    {generatePromptFromSchema(localSchema, propertyInstructions)}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="p-4 bg-gray-100 rounded-md text-center text-xs text-gray-500">
