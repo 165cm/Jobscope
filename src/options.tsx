@@ -14,14 +14,14 @@ interface ModelDef {
 }
 
 const DEFAULT_MODELS: ModelDef[] = [
+    { id: 'gpt-4o-mini', name: 'GPT-4o mini (推奨: 安価＆高速)', inputPrice: 0.15, outputPrice: 0.60 },
     { id: 'gpt-5-nano', name: 'GPT-5 Nano (最新・最安)', inputPrice: 0.08, outputPrice: 0.32 },
-    { id: 'gpt-4o-mini', name: 'GPT-4o mini', inputPrice: 0.15, outputPrice: 0.60 },
     { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', inputPrice: 0.50, outputPrice: 1.50 },
 ];
 
 function Options() {
     const [openAIKey, setOpenAIKey] = useState('');
-    const [openaiModel, setOpenaiModel] = useState('gpt-5-nano');
+    const [openaiModel, setOpenaiModel] = useState('gpt-4o-mini');
     const [customModels, setCustomModels] = useState<ModelDef[]>([]);
 
     // Add Model State
