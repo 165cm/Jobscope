@@ -6,15 +6,23 @@ import UserProfileForm from '@/components/UserProfileForm';
 import ResumeManager from '@/components/ResumeManager';
 import Preview from '@/components/Preview';
 import { LayoutDashboard } from 'lucide-react';
+import { useJobAnalysis } from '@/hooks/useJobAnalysis';
 
 export default function Home() {
-  const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [userProfile, setUserProfile] = useState('');
   const [resumeName, setResumeName] = useState('');
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
   const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  // Custom Hook for Analysis Logic
+  const {
+    analyzing,
+    analysisResult,
+    error,
+    setError,
+    handleAnalyze: analyzeJob,
+    setAnalysisResult
+  } = useJobAnalysis(userProfile);
 
   // Load default resume on mount
   useEffect(() => {
@@ -45,82 +53,18 @@ export default function Home() {
   }, [userProfile]);
 
   const handleAnalyze = async (url: string, manualText?: string) => {
-    setAnalyzing(true);
-    setError(null);
-    setAnalysisResult(null);
+    const result = await analyzeJob(url, manualText);
 
-    try {
-      let jobText = manualText || '';
-
-      let targetUrl = url;
-      // User requested to keep parameters, so we skip cleaning.
-      // try {
-      //   if(url) {
-      //       const u = new URL(url);
-      //       targetUrl = `${u.origin}${u.pathname}`; 
-      //   }
-      // } catch (e) { ... }
-
-      // 1. Scrape if no manual text
-      if (!jobText && url) {
-        try {
-          const scrapeRes = await fetch('/api/scrape', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
-          });
-
-          if (!scrapeRes.ok) {
-            const errJson = await scrapeRes.json();
-            // If scrape fails, we don't throw immediately if we want to encourage manual input,
-            // but here we are in the "Automatic" flow.
-            // We throw to show error.
-            throw new Error(errJson.error || 'Scraping failed');
-          }
-
-          const scrapeData = await scrapeRes.json();
-          jobText = scrapeData.text;
-
-        } catch (e: any) {
-          console.error('Scrape error:', e);
-          // Show error but allow user to continue if they provide manual text next time?
-          // For now just error out.
-          throw new Error(`求人票の取得に失敗しました: ${e.message}。手動入力機能を使用してください。`);
-        }
-      }
-
-      // 2. Analyze
-      const analyzeRes = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobDescription: jobText,
-          userProfile: userProfile,
-          url: targetUrl
-        }),
-      });
-
-      if (!analyzeRes.ok) {
-        const errJson = await analyzeRes.json();
-        throw new Error(errJson.error || 'Analysis failed');
-      }
-
-      const info = await analyzeRes.json();
-      const resultData = { ...info, url: targetUrl };
-      setAnalysisResult(resultData);
-
-      // Auto-save
-      await handleSave(resultData);
-
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setAnalyzing(false);
+    if (result) {
+      // Auto-save if analysis was successful
+      await handleSave(result);
     }
   };
 
   const handleSave = async (dataToSave?: any) => {
-    const targetData = dataToSave || analysisResult;
+    // Safety check: ensure dataToSave is not a DOM event
+    const isEvent = dataToSave && (dataToSave.nativeEvent || dataToSave.preventDefault);
+    const targetData = (dataToSave && !isEvent) ? dataToSave : analysisResult;
     if (!targetData) return;
 
     setSaving(true);
@@ -136,15 +80,10 @@ export default function Home() {
         throw new Error(errJson.error || 'Save failed');
       }
 
-      // Success notification (Toast/Alert) - Keeping it simple or maybe just subtle
-      // alert('Notionへの保存が完了しました！🎉'); 
-      // Auto-save shouldn't interrupt with alert ideally, but user asked for functionality.
-      // Let's use a console log or local UI state to show compatibility.
-      // For now, removing alert to make it smooth, maybe just set a "Saved" flag if needed.
       console.log('Auto-saved to Notion');
 
     } catch (e: any) {
-      setError(`保存エラー: ${e.message}`); // Show save error in the main error box
+      setError(`保存エラー: ${e.message}`);
     } finally {
       setSaving(false);
     }
@@ -183,7 +122,12 @@ export default function Home() {
 
             {/* Result Preview */}
             {analysisResult && (
-              <Preview data={analysisResult} onSave={handleSave} isSaving={saving} />
+              <Preview
+                data={analysisResult}
+                onSave={handleSave}
+                isSaving={saving}
+                onUpdate={setAnalysisResult}
+              />
             )}
           </div>
 

@@ -62,10 +62,12 @@ export async function POST(req: NextRequest) {
         // Numbers
         addProp('salary_min', properties.salary_min, 'number');
         addProp('salary_max', properties.salary_max, 'number');
-        addProp('commute_min', properties.commute_time, 'number');
-        addProp('age_limit', properties.age_limit || 0, 'number');
-        addProp('employees_count', properties.employees_count, 'number');
-        addProp('average_age', properties.average_age, 'number');
+
+        // Changed from Number to RichText (Text) to handle string values like "100名", "30歳", "渋谷駅"
+        addProp('Station', properties.station, 'rich_text');
+        addProp('age_limit', properties.age_limit, 'rich_text');
+        addProp('Employees', properties.employees, 'rich_text');
+        addProp('Avg Age', properties.avg_age, 'rich_text');
 
         // URL
         // Notion API requires a valid URL or null, explicitly not an empty string
@@ -76,7 +78,6 @@ export async function POST(req: NextRequest) {
         else notionProperties['status'] = { select: { name: 'searching' } };
 
         if (properties.source) addProp('source', properties.source, 'select');
-        else notionProperties['source'] = { select: { name: 'doda' } };
 
         if (properties.category) addProp('category', properties.category, 'select');
         if (properties.match) addProp('match', properties.match, 'select');
