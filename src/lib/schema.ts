@@ -126,7 +126,7 @@ export function hasSchemaDiff(diff: SchemaDiff): boolean {
 }
 
 // Map known property names to specific extraction instructions
-const PROPERTY_INSTRUCTIONS: Record<string, string> = {
+export const DEFAULT_PROPERTY_INSTRUCTIONS: Record<string, string> = {
     "company": "Company name. Abbreviate 株式会社 to ㈱ (e.g., 株式会社ABC → ㈱ABC)",
     "Name": "Company name. Abbreviate 株式会社 to ㈱ (e.g., 株式会社ABC → ㈱ABC)",
     "title": "Job title (exclude company name)",
@@ -150,7 +150,10 @@ const PROPERTY_INSTRUCTIONS: Record<string, string> = {
 };
 
 // Generate default prompt from schema
-export function generatePromptFromSchema(schema: NotionSchema): string {
+export function generatePromptFromSchema(
+    schema: NotionSchema,
+    customInstructions: Record<string, string> = {}
+): string {
     let prompt = `Extract the following fields for Notion Properties:\n`;
 
     // specific sort order? For now, alphabetical or schema order is fine.
@@ -171,7 +174,10 @@ export function generatePromptFromSchema(schema: NotionSchema): string {
         if (['created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(prop.type)) continue;
 
         const typeHint = getTypeHint(prop);
-        const instruction = PROPERTY_INSTRUCTIONS[prop.name] || PROPERTY_INSTRUCTIONS[prop.name.toLowerCase()] || "";
+
+        // Use custom instruction if available, otherwise default fallback
+        const instruction = customInstructions[prop.name] ??
+            (DEFAULT_PROPERTY_INSTRUCTIONS[prop.name] || DEFAULT_PROPERTY_INSTRUCTIONS[prop.name.toLowerCase()] || "");
 
         let line = `- ${prop.name}: ${typeHint}`;
         if (instruction) {

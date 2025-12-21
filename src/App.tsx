@@ -69,7 +69,7 @@ function App() {
     setSavedPageId(null);
 
     try {
-      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt', 'prompt_role', 'prompt_logic']);
+      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt', 'prompt_role', 'prompt_logic', 'prompt_instructions']);
       const apiKey = storage.openai_api_key;
       const userProfile = (storage.user_profile as string) || "";
 
@@ -83,10 +83,11 @@ function App() {
       if (storage.prompt_role || storage.prompt_logic || !finalPrompt) {
         const role = storage.prompt_role || (await import('./lib/openai')).DEFAULT_ROLE;
         const logic = storage.prompt_logic || (await import('./lib/openai')).DEFAULT_LOGIC;
+        const instructions = (storage.prompt_instructions as Record<string, string>) || {};
 
         let schemaPrompt = "";
         if (schema) {
-          schemaPrompt = generatePromptFromSchema(schema);
+          schemaPrompt = generatePromptFromSchema(schema, instructions);
         } else {
           // Fallback if no schema synced yet? 
           // Using generatePromptFromSchema with empty/dummy might be bad.
