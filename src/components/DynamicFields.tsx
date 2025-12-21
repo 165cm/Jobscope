@@ -26,10 +26,23 @@ const FIELD_ORDER = [
 // Fields already shown in the header (exclude from dynamic list to avoid duplication)
 const EXCLUDED_FIELDS = ['match'];
 
-// Helper function to get value with case-insensitive key lookup
+// Map Notion schema property names to API response keys
+// Notion uses "Job Title" but API response uses "title", etc.
+const PROPERTY_NAME_MAP: Record<string, string> = {
+    'Job Title': 'title',
+    'Name': 'company',
+    // Add more mappings as needed
+};
+
+// Helper function to get value with property name mapping and case-insensitive key lookup
 function getValue(values: Record<string, any>, propName: string): any {
+    // Check if there's a mapping for this property name
+    const mappedKey = PROPERTY_NAME_MAP[propName];
+    if (mappedKey && values[mappedKey] !== undefined) return values[mappedKey];
+
     // Direct match
     if (values[propName] !== undefined) return values[propName];
+
     // Case-insensitive match
     const lowerKey = propName.toLowerCase();
     const matchingKey = Object.keys(values).find(k => k.toLowerCase() === lowerKey);
