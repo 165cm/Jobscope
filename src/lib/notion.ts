@@ -5,39 +5,59 @@ export interface NotionResponse {
     id: string;
 }
 
+// Helper to ensure value is a string for Notion API
+function ensureString(value: any): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+        // Join array elements into a single string
+        return value.map(v => ensureString(v)).join(', ');
+    }
+    if (typeof value === 'object') {
+        // Try common string-like properties
+        if (value.name) return value.name;
+        if (value.content) return value.content;
+        if (value.text) return ensureString(value.text);
+        if (value.title) return ensureString(value.title);
+        return JSON.stringify(value);
+    }
+    return String(value);
+}
+
 // Map AnalyzeResult properties to Notion API payload
 function mapProperties(data: AnalyzeResult, jobUrl: string) {
+    const p = data.properties;
     return {
-        "Name": { title: [{ text: { content: data.properties.company || "Unknown Company" } }] },
-        "Job Title": { rich_text: [{ text: { content: data.properties.title || "Unknown Title" } }] },
+        "Name": { title: [{ text: { content: ensureString(p.company) || "Unknown Company" } }] },
+        "Job Title": { rich_text: [{ text: { content: ensureString(p.title) || "Unknown Title" } }] },
         "url": { url: jobUrl || null },
 
-        "source": { select: { name: data.properties.source || "Other" } },
+        "source": { select: { name: ensureString(p.source) || "Other" } },
         "status": { select: { name: "searching" } },
-        "employment": { select: { name: data.properties.employment || "other" } },
-        "remote": { select: { name: data.properties.remote || "不明" } },
-        "category": { select: { name: data.properties.category || "other" } },
-        "match": { select: { name: data.properties.match || "poor" } },
+        "employment": { select: { name: ensureString(p.employment) || "other" } },
+        "remote": { select: { name: ensureString(p.remote) || "不明" } },
+        "category": { select: { name: ensureString(p.category) || "other" } },
+        "match": { select: { name: ensureString(p.match) || "poor" } },
 
-        "salary_min": { number: data.properties.salary_min || null },
-        "salary_max": { number: data.properties.salary_max || null },
+        "salary_min": { number: p.salary_min || null },
+        "salary_max": { number: p.salary_max || null },
 
-        "location": { rich_text: [{ text: { content: data.properties.location || "" } }] },
-        "Station": { rich_text: [{ text: { content: data.properties.station || "" } }] },
-        "Employees": { rich_text: [{ text: { content: data.properties.employees || "" } }] },
-        "Avg Age": { rich_text: [{ text: { content: data.properties.avg_age || "" } }] },
-        "age_limit": { rich_text: [{ text: { content: data.properties.age_limit || "" } }] },
+        "location": { rich_text: [{ text: { content: ensureString(p.location) } }] },
+        "Station": { rich_text: [{ text: { content: ensureString(p.station) } }] },
+        "Employees": { rich_text: [{ text: { content: ensureString(p.employees) } }] },
+        "Avg Age": { rich_text: [{ text: { content: ensureString(p.avg_age) } }] },
+        "age_limit": { rich_text: [{ text: { content: ensureString(p.age_limit) } }] },
 
         // Checkboxes
-        "autonomy": { checkbox: data.properties.autonomy || false },
-        "feedback": { checkbox: data.properties.feedback || false },
-        "teamwork": { checkbox: data.properties.teamwork || false },
-        "long_commute": { checkbox: data.properties.long_commute || false },
-        "overwork": { checkbox: data.properties.overwork || false },
+        "autonomy": { checkbox: p.autonomy || false },
+        "feedback": { checkbox: p.feedback || false },
+        "teamwork": { checkbox: p.teamwork || false },
+        "long_commute": { checkbox: p.long_commute || false },
+        "overwork": { checkbox: p.overwork || false },
 
         // Multi-select for skills
         "skills": {
-            multi_select: (data.properties.skills || []).map(skill => ({ name: skill.replace(/,/g, '') })).slice(0, 10)
+            multi_select: (Array.isArray(p.skills) ? p.skills : []).map(skill => ({ name: ensureString(skill).replace(/,/g, '') })).slice(0, 10)
         },
     };
 }
