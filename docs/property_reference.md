@@ -1,11 +1,9 @@
 # Job Search DB - Property Reference
 
-## プロパティ一覧（17項目）
+## プロパティ一覧（20項目）
 
 | Property      | 日本語名         | Type         | Options / Description                                                              |
 | ------------- | ---------------- | ------------ | ---------------------------------------------------------------------------------- |
-| Property      | 日本語名         | Type         | Options / Description                                                              |
-| ----------    | ---------        | ------       | ----------------------                                                             |
 | **Name**      | 企業名           | **Title**    | 会社名 (Primary Title, Internal ID: title)                                         |
 | **Job Title** | 求人タイトル     | **Text**     | 職種・ポジション名 (Internal ID: lpWc等)                                           |
 | url           | 求人URL          | URL          | 求人ページのリンク                                                                 |
@@ -13,13 +11,15 @@
 | status        | ステータス       | Select       | searching / applied / passed / interview / offered / rejected / hold               |
 | action_date   | 次回アクション日 | Date         | 面接日・連絡予定日など                                                             |
 | location      | 勤務地           | Text         | 最寄り駅・エリア                                                                   |
-| commute_min   | 通勤時間         | Number       | 片道◯分                                                                            |
+| **Station**   | 最寄り駅         | **Text**     | 最寄り駅と徒歩時間（例: 渋谷駅 徒歩5分）**New!**                                   |
+| **Employees** | 従業員数         | **Text**     | 従業員数（例: 100名, 約500人）**New!**                                             |
+| **Avg Age**   | 平均年齢         | **Text**     | 平均年齢（例: 30.5歳, 20代後半）**New!**                                           |
 | employment    | 雇用形態         | Select       | fulltime / contract / freelance / other                                            |
 | salary_min    | 年収下限         | Number       | 万円                                                                               |
 | salary_max    | 年収上限         | Number       | 万円                                                                               |
-| age_limit     | 年齢上限         | Number       | 歳（空欄=制限なし）                                                                |
+| age_limit     | 年齢上限         | **Text**     | 年齢制限（例: 35歳以下）※フリーフォーマット                                        |
 | side_job      | 副業             | Select       | ok / ng / negotiable / unknown                                                     |
-| remote        | リモート         | Select       | none / hybrid / mostly_remote / full_remote                                        |
+| remote        | リモート         | Select       | フルリモート / 週一部リモート / リモート可 / なし / 不明                           |
 | category      | 職種             | Select       | creative / engineer / marketing / director / other                                 |
 | skills        | スキル           | Multi-select | video / youtube / seo / ai / analytics / chinese / english                         |
 | match         | マッチ度         | Select       | excellent / good / fair / poor                                                     |
@@ -29,6 +29,7 @@
 | long_commute  | ⚠️長通勤          | Checkbox     | 片道1時間超                                                                        |
 | overwork      | ⚠️残業多          | Checkbox     | 長時間労働の懸念                                                                   |
 | memo          | メモ             | Text         | 一言メモ                                                                           |
+
 
 ---
 
@@ -56,7 +57,7 @@ ok（可）, ng（不可）, negotiable（要相談）, unknown（不明）
 
 ### remote（リモート）
 ```
-none（なし）, hybrid（週1-2日）, mostly_remote（週3-4日）, full_remote（フルリモート）
+フルリモート, 週一部リモート, リモート可, なし, 不明
 ```
 
 ### category（職種）
