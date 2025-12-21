@@ -35,18 +35,26 @@ Process the Job Description and User Profile to extract key information.
 
 Requirements:
 1. Extract fields for Notion Properties:
-   - company: Company name
+   - company: Company name. **IMPORTANT**: Abbreviate 株式会社 to ㈱ (e.g., 株式会社ABC → ㈱ABC)
    - title: Job title (exclude company name)
-   - source: Deduce from URL (Green, Wantedly, doda, etc.)
+   - source: Deduce from URL (Green, Wantedly, doda, BizReach, LinkedIn, YOUTRUST, Findy, Other)
    - employment: 正社員/契約社員/業務委託/other
    - remote: フルリモート/週一部リモート/リモート可/なし/不明
-   - salary_min, salary_max: In 万円 (null if unknown)
+   - salary_min, salary_max: In 万円 (null if unknown). Example: 5,000,000円 → 500
    - category: エンジニア/PM/デザイナー/営業/事務/other
-   - location: Main work location
-   - station: Nearest station
-   - skills: Array of relevant skills
-   - match: excellent/good/fair/poor (based on profile match)
-   - Boolean flags: autonomy, feedback, teamwork, long_commute, overwork
+   - location: Main work location (e.g., 東京都港区)
+   - Station: Nearest station (e.g., 渋谷駅 徒歩5分)
+   - Employees: Employee count as string (e.g., 100名, 約500人)
+   - Avg Age: Average age as string (e.g., 30.5歳, 20代後半)
+   - age_limit: Age limit if mentioned (e.g., 35歳以下)
+   - skills: Array of technical skills mentioned (max 10)
+   - match: excellent/good/fair/poor (based on user profile match)
+   - Boolean flags (true/false):
+     - autonomy: 裁量権あり
+     - feedback: フィードバック文化あり
+     - teamwork: チームワーク重視
+     - long_commute: 通勤1時間超
+     - overwork: 長時間労働の兆候
 
 2. Generate markdown_content summarizing the job.
 
@@ -55,6 +63,7 @@ Output JSON format:
   "properties": { ... },
   "markdown_content": "..."
 }`;
+
 
 export async function analyzeJobPost(
     text: string,

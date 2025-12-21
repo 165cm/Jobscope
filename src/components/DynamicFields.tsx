@@ -7,23 +7,80 @@ interface DynamicFieldsProps {
     onChange: (field: string, value: any) => void;
 }
 
+// Preferred display order for fields
+const FIELD_ORDER = [
+    // Basic Info
+    'source', 'employment', 'remote', 'category',
+    // Salary
+    'salary_min', 'salary_max',
+    // Location
+    'location', 'Station',
+    // Company
+    'Employees', 'Avg Age', 'age_limit',
+    // Skills
+    'skills',
+    // Boolean flags (shown at end)
+    'autonomy', 'feedback', 'teamwork', 'long_commute', 'overwork',
+];
+
+// Helper function to get value with case-insensitive key lookup
+function getValue(values: Record<string, any>, propName: string): any {
+    // Direct match
+    if (values[propName] !== undefined) return values[propName];
+    // Case-insensitive match
+    const lowerKey = propName.toLowerCase();
+    const matchingKey = Object.keys(values).find(k => k.toLowerCase() === lowerKey);
+    return matchingKey ? values[matchingKey] : undefined;
+}
+
 // Map Notion property types to UI components
 export function DynamicFields({ schema, values, onChange }: DynamicFieldsProps) {
     // Filter and sort properties for display
-    const displayProps = schema.properties.filter(
-        (p) => !['title', 'created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(p.type)
-    );
+    const displayProps = schema.properties
+        .filter((p) => !['title', 'created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(p.type))
+        .sort((a, b) => {
+            const aIndex = FIELD_ORDER.indexOf(a.name);
+            const bIndex = FIELD_ORDER.indexOf(b.name);
+            // Known fields come first, sorted by order
+            if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            // Unknown fields: checkboxes at end, rest alphabetically
+            if (a.type === 'checkbox' && b.type !== 'checkbox') return 1;
+            if (b.type === 'checkbox' && a.type !== 'checkbox') return -1;
+            return a.name.localeCompare(b.name);
+        });
+
+    // Separate checkboxes for grouped display
+    const textFields = displayProps.filter(p => p.type !== 'checkbox');
+    const checkboxFields = displayProps.filter(p => p.type === 'checkbox');
 
     return (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            {displayProps.map((prop) => (
-                <DynamicField
-                    key={prop.id}
-                    property={prop}
-                    value={values[prop.name]}
-                    onChange={(val) => onChange(prop.name, val)}
-                />
-            ))}
+        <div className="space-y-4">
+            {/* Text/Select/Number fields */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                {textFields.map((prop) => (
+                    <DynamicField
+                        key={prop.id}
+                        property={prop}
+                        value={getValue(values, prop.name)}
+                        onChange={(val) => onChange(prop.name, val)}
+                    />
+                ))}
+            </div>
+            {/* Checkbox flags */}
+            {checkboxFields.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                    {checkboxFields.map((prop) => (
+                        <DynamicField
+                            key={prop.id}
+                            property={prop}
+                            value={getValue(values, prop.name)}
+                            onChange={(val) => onChange(prop.name, val)}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
