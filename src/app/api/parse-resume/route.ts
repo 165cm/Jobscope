@@ -1,28 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai, MODEL_NAME } from '@/lib/openai';
-import * as pdfjs from 'pdfjs-dist';
+// @ts-ignore
+const pdf = require('pdf-parse');
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
-
-// Initialize PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = '';
-
-async function extractTextFromPDF(buffer: ArrayBuffer): Promise<string> {
-    const pdf = await pdfjs.getDocument({ data: buffer }).promise;
-    let fullText = '';
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(' ');
-        fullText += pageText + '\n';
-    }
-
-    return fullText;
-}
 
 export async function POST(req: NextRequest) {
     console.log('[API] Parse Resume Started');
@@ -37,13 +19,15 @@ export async function POST(req: NextRequest) {
         }
         console.log(`[API] File received: ${file.name}, size: ${file.size}`);
 
-        // Convert file to ArrayBuffer
+        // Convert file to Buffer for pdf-parse
         const bytes = await file.arrayBuffer();
-        console.log('[API] Buffer created');
+        const buffer = Buffer.from(bytes);
 
-        // Extract text using PDF.js
-        console.log('[API] Parsing PDF...');
-        const resumeText = await extractTextFromPDF(bytes);
+        // Extract text using pdf-parse
+        console.log('[API] Parsing PDF with pdf-parse...');
+        const data = await pdf(buffer);
+        const resumeText = data.text;
+
         console.log(`[API] PDF Parsed. Text length: ${resumeText.length}`);
 
         if (!resumeText || resumeText.trim().length === 0) {
