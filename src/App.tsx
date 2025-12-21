@@ -212,6 +212,24 @@ function App() {
 
   // Result View
   if (result) {
+    // Helper to resolve property keys (handle aliases)
+    const findKey = (candidates: string[]) => {
+      for (const key of candidates) {
+        if (result.properties[key] !== undefined) return key;
+      }
+      // Case insensitive scan
+      for (const key of candidates) {
+        const lower = key.toLowerCase();
+        for (const propKey of Object.keys(result.properties)) {
+          if (propKey.toLowerCase() === lower) return propKey;
+        }
+      }
+      return candidates[0];
+    };
+
+    const companyKey = findKey(['company', 'Company', 'Name', '会社名', '企業名', 'Business Name']);
+    const titleKey = findKey(['title', 'Title', 'Job Title', 'Role', 'role', '役職', '職種']);
+
     return (
       <div className="w-full min-h-[600px] bg-white text-gray-800 text-sm">
         {/* Schema Diff Alert */}
@@ -232,14 +250,14 @@ function App() {
           <div className="flex-1 min-w-0 mr-2">
             <input
               className="font-bold text-base w-full border-none focus:ring-0 p-0 text-gray-900 bg-transparent placeholder-gray-300 truncate"
-              value={result.properties.company}
-              onChange={(e) => updateField('company', e.target.value)}
+              value={result.properties[companyKey] || ''}
+              onChange={(e) => updateField(companyKey, e.target.value)}
               placeholder="Company Name"
             />
             <input
               className="text-xs text-gray-500 w-full border-none focus:ring-0 p-0 bg-transparent placeholder-gray-300 truncate"
-              value={result.properties.title}
-              onChange={(e) => updateField('title', e.target.value)}
+              value={result.properties[titleKey] || ''}
+              onChange={(e) => updateField(titleKey, e.target.value)}
               placeholder="Job Title"
             />
           </div>
