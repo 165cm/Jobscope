@@ -4,6 +4,8 @@
 
 Chrome拡張機能 + Notionテンプレートを$5で販売し、顧客満足度を最大化するための戦略
 
+**販売プラットフォーム: Gumroad**
+
 ---
 
 ## 1. 顧客満足度を最大化する戦略
@@ -72,7 +74,7 @@ Chrome拡張機能 + Notionテンプレートを$5で販売し、顧客満足度
 
 ---
 
-## 2. クロスプラットフォーム課金の統合方法
+## 2. Gumroadでのクロスプラットフォーム課金統合
 
 ### 2.1 課題
 
@@ -83,149 +85,98 @@ Notion マーケットプレイス で購入 → テンプレートのみ？
 → どちらで買っても両方使えるようにしたい
 ```
 
-### 2.2 解決策: 統一ライセンスキー方式
+### 2.2 解決策: Gumroad統一ライセンスキー方式
 
 **アーキテクチャ：**
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  あなたのバックエンド                      │
-│              (License Verification API)                   │
-│                                                           │
-│  POST /api/verify-license                                │
-│  - license_key: string                                   │
-│  - Returns: { valid: true, products: ["chrome", "notion"]}│
+│                      Gumroad                            │
+│              (ライセンスキー自動発行)                     │
+│                                                         │
+│  商品: Jobscope Pro ($5)                               │
+│  ├─ ライセンスキー自動生成                              │
+│  ├─ Notionテンプレートリンク配布                        │
+│  └─ セットアップガイドPDF                               │
+│                                                         │
+│  License API: POST /v2/licenses/verify                  │
 └─────────────────────────────────────────────────────────┘
            ▲                           ▲
            │                           │
     ┌──────┴──────┐             ┌──────┴──────┐
     │   Chrome    │             │   Notion    │
     │  Extension  │             │  Template   │
+    │   (無料)    │             │   (無料)    │
     │             │             │             │
-    │ ライセンス  │             │ 埋め込み    │
-    │ キー入力    │             │ ページで    │
-    │ → 検証      │             │ キー発行    │
+    │ ライセンス  │             │ 購入リンク  │
+    │ キー入力    │             │ 埋め込み    │
+    │ → Gumroad   │             │             │
+    │   API検証   │             │             │
     └─────────────┘             └─────────────┘
 ```
 
-### 2.3 具体的実装パターン
+### 2.3 Gumroadの利点
 
-#### パターンA: Gumroad/Lemon Squeezy 統合（推奨）
+| 機能 | 詳細 |
+|------|------|
+| ライセンスキー自動発行 | 購入時に一意のキーを自動生成 |
+| License API | 無料でライセンス検証API提供 |
+| 手数料 | 10% + $0.30（他サービスより低め） |
+| 日本円対応 | 自動通貨変換 |
+| 即座配信 | デジタル商品を購入直後に配布 |
+| Webhook | 購入イベントを自動通知 |
 
-**なぜ推奨か：**
-- 両プラットフォームの外部リンク制限を回避
-- 1つの商品ページで両方を販売
-- ライセンスキー自動発行機能あり
+### 2.4 Gumroad商品設定
 
-**フロー：**
-
-```
-1. Chrome Web Store
-   └─ 無料で配布（フリーミアム）
-   └─ 拡張機能内に「Pro版を購入」ボタン
-   └─ → Gumroad/Lemon Squeezyへ誘導
-
-2. Notion Marketplace
-   └─ テンプレート無料公開
-   └─ テンプレート内に「Pro版」購入リンク
-   └─ → 同じGumroad/Lemon Squeezy商品へ
-
-3. 購入後
-   └─ ライセンスキー自動発行
-   └─ 顧客はキーをChrome拡張に入力
-   └─ Pro機能がアンロック + テンプレートフルアクセス
-```
-
-**実装コード例（Chrome拡張側）：**
-
-```typescript
-// src/lib/license.ts
-export async function verifyLicense(licenseKey: string): Promise<boolean> {
-  // Lemon Squeezy License API
-  const response = await fetch(
-    `https://api.lemonsqueezy.com/v1/licenses/validate`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        license_key: licenseKey,
-        instance_id: await getInstanceId()
-      })
-    }
-  );
-
-  const data = await response.json();
-  return data.valid === true;
-}
-```
-
-#### パターンB: 独自バックエンド方式
-
-**必要なもの：**
-- 簡易バックエンド（Cloudflare Workers / Vercel Functions）
-- データベース（Supabase / PlanetScale）
-
-**テーブル設計：**
-
-```sql
-CREATE TABLE licenses (
-  id UUID PRIMARY KEY,
-  license_key VARCHAR(32) UNIQUE,
-  email VARCHAR(255),
-  purchase_source ENUM('chrome', 'notion', 'gumroad'),
-  purchase_date TIMESTAMP,
-  is_active BOOLEAN DEFAULT true
-);
-```
-
-#### パターンC: 信頼ベースのシンプル方式（小規模向け）
-
-**フロー：**
+**商品作成時の設定：**
 
 ```
-1. 購入者にメールで以下を送付：
-   - Chrome拡張機能リンク（非公開/限定公開）
-   - Notionテンプレート複製リンク
-   - セットアップガイドPDF
+商品名: Jobscope Pro - 求人解析ツール
+価格: $5 (または ¥750)
+種類: デジタル商品
 
-2. Chrome Web Store は「非公開」設定
-   - 購入者のみがリンクを知っている
+✅ ライセンスキーを生成する (Generate a unique license key)
 
-3. Notionテンプレートは購入者専用URLで共有
+配布コンテンツ:
+├── setup-guide.pdf (セットアップガイド)
+├── notion-template-link.txt (テンプレート複製URL)
+└── chrome-extension-link.txt (拡張機能インストールURL)
+
+購入後メッセージ:
+「ご購入ありがとうございます！
+ライセンスキーをChrome拡張機能の設定画面に入力してください。
+セットアップ動画: [YouTube URL]」
 ```
-
-**メリット:** 実装コスト0
-**デメリット:** リンク流出リスク
 
 ---
 
-## 3. プラットフォーム別の制約と対応
+## 3. プラットフォーム別の対応
 
 ### 3.1 Chrome Web Store
 
 | 制約 | 対応策 |
 |------|--------|
-| 課金は拡張内課金APIのみ | 外部決済へ誘導（許可されている） |
-| 30%手数料 | 外部決済を使えば回避可能 |
-| 審査に時間がかかる | 先に公開しておく |
+| 課金は拡張内課金APIのみ | Gumroadへ外部誘導（許可されている） |
+| 30%手数料 | Gumroad経由で回避 |
+| 審査に時間がかかる | 先に無料版を公開しておく |
 
 **推奨アプローチ：**
 - 拡張機能は**無料で公開**
 - 拡張内に「Pro版購入」ボタンを設置
-- 外部の決済ページ（Gumroad等）へリンク
+- Gumroad商品ページへリンク
 
 ### 3.2 Notion Marketplace (Notion Template Gallery)
 
 | 制約 | 対応策 |
 |------|--------|
-| 無料テンプレートのみ | 基本版を無料公開し、Pro版は外部販売 |
-| 直接課金不可 | テンプレート内に購入リンクを埋め込み |
+| 無料テンプレートのみ | 基本版を無料公開し、Pro版はGumroad販売 |
+| 直接課金不可 | テンプレート内にGumroad購入リンク埋め込み |
 | 外部リンク制限あり | 説明文ではなくテンプレート内ページに記載 |
 
 **推奨アプローチ：**
 - 基本テンプレートを無料公開（機能制限）
 - テンプレート内に「フル版を購入」ページを含める
-- 購入者には別のフルテンプレートを配布
+- Gumroad購入者には別のフルテンプレートを配布
 
 ---
 
@@ -235,8 +186,8 @@ CREATE TABLE licenses (
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Lemon Squeezy                         │
-│                （メイン販売プラットフォーム）               │
+│                      Gumroad                            │
+│               （メイン販売プラットフォーム）               │
 │                                                         │
 │  商品: Jobscope Pro ($5)                               │
 │  含まれるもの:                                          │
@@ -245,7 +196,7 @@ CREATE TABLE licenses (
 │  ├─ セットアップ動画                                    │
 │  └─ 購入者限定Discordアクセス                           │
 │                                                         │
-│  ライセンスキー: 自動発行・自動検証                      │
+│  ライセンスキー: 自動発行・Gumroad API検証              │
 └─────────────────────────────────────────────────────────┘
          ▲                              ▲
          │                              │
@@ -255,7 +206,7 @@ CREATE TABLE licenses (
 │                 │           │                 │
 │ 基本機能のみ    │           │ 基本構造のみ    │
 │ 「Pro版購入」   │           │ 「Pro版購入」   │
-│  ボタン設置     │           │  リンク設置     │
+│  → Gumroadへ    │           │  → Gumroadへ    │
 └─────────────────┘           └─────────────────┘
 ```
 
@@ -285,100 +236,376 @@ CREATE TABLE licenses (
 
 ## 5. 実装優先順位
 
-### Phase 1: MVP (1週間)
+### Phase 1: MVP
 
-- [ ] Lemon Squeezyアカウント作成・商品設定
+- [ ] Gumroadアカウント作成
+- [ ] Gumroad商品ページ作成（$5、ライセンスキー有効化）
 - [ ] ライセンス検証コードを拡張機能に追加
 - [ ] Notionフルテンプレート作成
 - [ ] セットアップガイド作成
 
-### Phase 2: 最適化 (2週間)
+### Phase 2: 最適化
 
-- [ ] オンボーディングメール自動化
+- [ ] オンボーディングメール自動化（Gumroad Workflow）
 - [ ] 使用状況トラッキング
 - [ ] フィードバック収集システム
 
-### Phase 3: 成長 (継続)
+### Phase 3: 成長
 
 - [ ] 機能追加（ユーザーフィードバック基づき）
 - [ ] 他言語対応
-- [ ] アフィリエイトプログラム
+- [ ] アフィリエイトプログラム（Gumroad Affiliates）
 
 ---
 
 ## 6. 技術実装詳細
 
-### 6.1 ライセンス検証の追加
+### 6.1 Gumroad License API
+
+**エンドポイント：**
+```
+POST https://api.gumroad.com/v2/licenses/verify
+```
+
+**パラメータ：**
+| パラメータ | 必須 | 説明 |
+|-----------|------|------|
+| product_id | ✅ | Gumroad商品ID（商品ページURLの末尾） |
+| license_key | ✅ | ユーザーが入力したライセンスキー |
+| increment_uses_count | ❌ | true: 使用回数をカウント（デバイス制限用） |
+
+**レスポンス例（成功）：**
+```json
+{
+  "success": true,
+  "uses": 1,
+  "purchase": {
+    "seller_id": "xxxxx",
+    "product_id": "xxxxx",
+    "product_name": "Jobscope Pro",
+    "permalink": "jobscope-pro",
+    "email": "buyer@example.com",
+    "price": 500,
+    "currency": "usd",
+    "quantity": 1,
+    "license_key": "XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+    "refunded": false,
+    "created_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**レスポンス例（失敗）：**
+```json
+{
+  "success": false,
+  "message": "That license does not exist for the provided product."
+}
+```
+
+### 6.2 ライセンス検証コード実装
 
 **新規ファイル: `src/lib/license.ts`**
 
 ```typescript
+// Gumroad License Verification
+
+interface GumroadLicenseResponse {
+  success: boolean;
+  uses?: number;
+  message?: string;
+  purchase?: {
+    seller_id: string;
+    product_id: string;
+    product_name: string;
+    email: string;
+    license_key: string;
+    refunded: boolean;
+    created_at: string;
+  };
+}
+
 interface LicenseStatus {
   valid: boolean;
   tier: 'free' | 'pro';
-  expiresAt?: string;
+  email?: string;
+  activatedAt?: string;
 }
 
-const LEMON_SQUEEZY_API = 'https://api.lemonsqueezy.com/v1';
+// Gumroad商品ID（商品ページURLから取得）
+const GUMROAD_PRODUCT_ID = 'YOUR_PRODUCT_ID'; // 例: 'jobscope-pro'
 
-export async function checkLicense(): Promise<LicenseStatus> {
-  const { license_key } = await chrome.storage.local.get('license_key');
+export async function verifyLicense(licenseKey: string): Promise<LicenseStatus> {
+  try {
+    const response = await fetch('https://api.gumroad.com/v2/licenses/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        product_id: GUMROAD_PRODUCT_ID,
+        license_key: licenseKey,
+        increment_uses_count: 'false' // 検証のみ、カウントしない
+      })
+    });
+
+    const data: GumroadLicenseResponse = await response.json();
+
+    if (data.success && data.purchase && !data.purchase.refunded) {
+      return {
+        valid: true,
+        tier: 'pro',
+        email: data.purchase.email,
+        activatedAt: data.purchase.created_at
+      };
+    }
+
+    return { valid: false, tier: 'free' };
+  } catch (error) {
+    console.error('License verification failed:', error);
+    return { valid: false, tier: 'free' };
+  }
+}
+
+export async function checkStoredLicense(): Promise<LicenseStatus> {
+  const { license_key, license_cache } = await chrome.storage.local.get([
+    'license_key',
+    'license_cache'
+  ]);
 
   if (!license_key) {
     return { valid: false, tier: 'free' };
   }
 
-  try {
-    const response = await fetch(`${LEMON_SQUEEZY_API}/licenses/validate`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ license_key })
-    });
+  // キャッシュが24時間以内なら再検証しない
+  if (license_cache) {
+    const cacheTime = new Date(license_cache.timestamp).getTime();
+    const now = Date.now();
+    const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24時間
 
-    const data = await response.json();
-
-    if (data.valid) {
-      return { valid: true, tier: 'pro' };
+    if (now - cacheTime < CACHE_DURATION && license_cache.valid) {
+      return {
+        valid: true,
+        tier: 'pro',
+        email: license_cache.email
+      };
     }
-  } catch (error) {
-    console.error('License validation failed:', error);
   }
 
-  return { valid: false, tier: 'free' };
+  // Gumroad APIで検証
+  const status = await verifyLicense(license_key);
+
+  // キャッシュを更新
+  await chrome.storage.local.set({
+    license_cache: {
+      valid: status.valid,
+      email: status.email,
+      timestamp: new Date().toISOString()
+    }
+  });
+
+  return status;
 }
 
-export async function activateLicense(licenseKey: string): Promise<boolean> {
-  const status = await checkLicense();
+export async function activateLicense(licenseKey: string): Promise<LicenseStatus> {
+  const status = await verifyLicense(licenseKey);
+
   if (status.valid) {
-    await chrome.storage.local.set({ license_key: licenseKey });
-    return true;
+    await chrome.storage.local.set({
+      license_key: licenseKey,
+      license_cache: {
+        valid: true,
+        email: status.email,
+        timestamp: new Date().toISOString()
+      }
+    });
   }
-  return false;
+
+  return status;
+}
+
+export async function deactivateLicense(): Promise<void> {
+  await chrome.storage.local.remove(['license_key', 'license_cache']);
 }
 ```
 
-### 6.2 UI変更 (App.tsx)
+### 6.3 設定画面にライセンス入力を追加
+
+**`src/options.tsx` への追加：**
 
 ```tsx
-// 使用量トラッキング
-const [usageCount, setUsageCount] = useState(0);
-const [isPro, setIsPro] = useState(false);
+import { useState, useEffect } from 'react';
+import { activateLicense, checkStoredLicense, deactivateLicense } from './lib/license';
 
-const FREE_LIMIT = 5;
+function LicenseSection() {
+  const [licenseKey, setLicenseKey] = useState('');
+  const [status, setStatus] = useState<'free' | 'pro' | 'checking'>('checking');
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
 
-// 解析前チェック
-const handleAnalyze = async () => {
-  if (!isPro && usageCount >= FREE_LIMIT) {
-    // Pro版購入を促すモーダル表示
-    showUpgradeModal();
-    return;
+  useEffect(() => {
+    checkStoredLicense().then((result) => {
+      setStatus(result.tier);
+      if (result.email) setEmail(result.email);
+    });
+  }, []);
+
+  const handleActivate = async () => {
+    setError('');
+    const result = await activateLicense(licenseKey);
+
+    if (result.valid) {
+      setStatus('pro');
+      setEmail(result.email || '');
+      setLicenseKey('');
+    } else {
+      setError('無効なライセンスキーです。再度ご確認ください。');
+    }
+  };
+
+  const handleDeactivate = async () => {
+    await deactivateLicense();
+    setStatus('free');
+    setEmail('');
+  };
+
+  if (status === 'checking') {
+    return <div>確認中...</div>;
   }
-  // 通常の解析処理
-};
+
+  return (
+    <div className="license-section">
+      <h3>ライセンス</h3>
+
+      {status === 'pro' ? (
+        <div className="pro-status">
+          <p>✅ Pro版がアクティブです</p>
+          <p className="email">登録メール: {email}</p>
+          <button onClick={handleDeactivate}>ライセンスを解除</button>
+        </div>
+      ) : (
+        <div className="free-status">
+          <p>現在: 無料版（月5件まで）</p>
+          <div className="activate-form">
+            <input
+              type="text"
+              placeholder="ライセンスキーを入力"
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value)}
+            />
+            <button onClick={handleActivate}>アクティベート</button>
+          </div>
+          {error && <p className="error">{error}</p>}
+          <a
+            href="https://YOUR_GUMROAD_LINK.gumroad.com/l/jobscope-pro"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Pro版を購入する ($5)
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
 ```
+
+### 6.4 使用量制限の実装
+
+**`src/App.tsx` への追加：**
+
+```tsx
+import { checkStoredLicense } from './lib/license';
+
+const FREE_MONTHLY_LIMIT = 5;
+
+function App() {
+  const [isPro, setIsPro] = useState(false);
+  const [usageCount, setUsageCount] = useState(0);
+
+  useEffect(() => {
+    // ライセンス確認
+    checkStoredLicense().then((status) => {
+      setIsPro(status.tier === 'pro');
+    });
+
+    // 月間使用量を取得
+    chrome.storage.local.get(['usage_count', 'usage_month']).then((data) => {
+      const currentMonth = new Date().toISOString().slice(0, 7); // "2024-01"
+
+      if (data.usage_month === currentMonth) {
+        setUsageCount(data.usage_count || 0);
+      } else {
+        // 新しい月なのでリセット
+        chrome.storage.local.set({ usage_count: 0, usage_month: currentMonth });
+        setUsageCount(0);
+      }
+    });
+  }, []);
+
+  const handleAnalyze = async () => {
+    // Pro版でなく、制限に達している場合
+    if (!isPro && usageCount >= FREE_MONTHLY_LIMIT) {
+      alert(`無料版の月間制限（${FREE_MONTHLY_LIMIT}件）に達しました。\nPro版にアップグレードすると無制限でご利用いただけます。`);
+      return;
+    }
+
+    // 解析実行...
+    await performAnalysis();
+
+    // 使用量をインクリメント（Pro版でない場合）
+    if (!isPro) {
+      const newCount = usageCount + 1;
+      setUsageCount(newCount);
+      await chrome.storage.local.set({
+        usage_count: newCount,
+        usage_month: new Date().toISOString().slice(0, 7)
+      });
+    }
+  };
+
+  return (
+    <div>
+      {!isPro && (
+        <div className="usage-indicator">
+          残り: {FREE_MONTHLY_LIMIT - usageCount} / {FREE_MONTHLY_LIMIT} 件
+        </div>
+      )}
+      {/* ... */}
+    </div>
+  );
+}
+```
+
+---
+
+## 7. Gumroad設定手順
+
+### 7.1 アカウント作成
+
+1. https://gumroad.com にアクセス
+2. 「Start selling」からアカウント作成
+3. PayPalまたはStripeで支払い受取設定
+
+### 7.2 商品作成
+
+1. Dashboard → 「New product」
+2. 設定：
+   - Name: `Jobscope Pro - 求人解析ツール`
+   - Price: `$5` または `¥750`
+   - Type: `Digital product`
+
+3. **重要設定：**
+   - ✅ `Generate a license key for each sale`（ライセンスキー自動発行）
+   - Content: セットアップガイドPDF、テンプレートリンクを添付
+
+4. 「Publish」で公開
+
+### 7.3 商品IDの確認
+
+商品ページURL: `https://yourname.gumroad.com/l/jobscope-pro`
+
+→ `jobscope-pro` が商品ID（`GUMROAD_PRODUCT_ID`に設定）
 
 ---
 
@@ -388,9 +615,9 @@ const handleAnalyze = async () => {
 
 1. **顧客満足度最大化** → オンボーディング最適化 + 充実したテンプレート + サポート体制
 
-2. **クロスプラットフォーム課金** → **Lemon Squeezy/Gumroad** を中間レイヤーとして使用
-   - 両プラットフォームから外部決済ページへ誘導
-   - 1つのライセンスキーで両方をアンロック
-   - 技術的には統一APIで検証
+2. **クロスプラットフォーム課金** → **Gumroad** を中間レイヤーとして使用
+   - 両プラットフォーム（Chrome Store / Notion Gallery）から Gumroad商品ページへ誘導
+   - 1つのライセンスキーで両方（拡張機能Pro + フルテンプレート）をアンロック
+   - Gumroad License API で検証（無料、バックエンド不要）
 
-この方式なら、どこで購入しても同じライセンスキーが発行され、Chrome拡張もNotionテンプレートも両方使えます。
+**この方式なら、どこで購入しても同じライセンスキーが発行され、Chrome拡張もNotionテンプレートも両方使えます。**
