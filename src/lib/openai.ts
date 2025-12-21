@@ -133,5 +133,57 @@ ${userProfile || 'No specific user profile provided.'}
         throw new Error("No content from OpenAI");
     }
 
-    return JSON.parse(content) as AnalyzeResult;
+    const result = JSON.parse(content) as AnalyzeResult;
+    return sanitizeAnalyzeResult(result);
+}
+
+// Ensure all properties are flat strings/numbers/booleans
+function sanitizeAnalyzeResult(result: AnalyzeResult): AnalyzeResult {
+    const sanitizedProps: any = {};
+    const props: any = result.properties || {};
+
+    for (const [key, value] of Object.entries(props)) {
+        sanitizedProps[key] = flattenValue(value);
+    }
+
+    return {
+        ...result,
+        properties: sanitizedProps
+    };
+}
+
+// Helper to extract primitive value from potential Notion object structure
+function flattenValue(value: any): any {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'object') return value;
+    if (Array.isArray(value)) {
+        // If array of strings, keep it (e.g. skills)
+        if (value.length > 0 && typeof value[0] === 'string') return value;
+        // If array of objects (multi_select), map to names
+        if (value.length > 0 && value[0].name) return value.map((v: any) => v.name);
+        return value;
+    }
+
+    // Handle common Notion property types
+    if (value.rich_text && Array.isArray(value.rich_text)) {
+        return value.rich_text.map((t: any) => t.plain_text || t.text?.content || '').join('');
+    }
+    if (value.title && Array.isArray(value.title)) {
+        return value.title.map((t: any) => t.plain_text || t.text?.content || '').join('');
+    }
+    if (value.select) return value.select.name || '';
+    if (value.multi_select) return value.multi_select.map((o: any) => o.name);
+    if (value.files) return ''; // ignore files
+    if (value.number !== undefined) return value.number;
+    if (value.checkbox !== undefined) return value.checkbox;
+    if (value.url !== undefined) return value.url;
+    if (value.email !== undefined) return value.email;
+    if (value.phone_number !== undefined) return value.phone_number;
+    if (value.date) return value.date.start || '';
+
+    // If it's just a random object, try specific keys or stringify
+    if (value.name) return value.name;
+    if (value.content) return value.content;
+
+    return JSON.stringify(value); // Last resort
 }
