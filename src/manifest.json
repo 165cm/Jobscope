@@ -1,0 +1,39 @@
+{
+    "manifest_version": 3,
+    "name": "Jobscope",
+    "version": "1.0.0",
+    "description": "AI-powered job application assistant for modern job seekers.",
+    "permissions": [
+        "sidePanel",
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "https://*/*"
+    ],
+    "side_panel": {
+        "default_path": "index.html"
+    },
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
+    },
+    "action": {
+        "default_title": "Open Jobscope Sidepanel"
+    },
+    "background": {
+        "service_worker": "src/background.ts",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://*/*"
+            ],
+            "js": [
+                "src/content.ts"
+            ]
+        }
+    ]
+}
