@@ -1,4 +1,4 @@
-export const MODEL_NAME = "gpt-4o-mini";
+export const MODEL_NAME = "gpt-5-nano";
 
 export interface AnalyzeResult {
     properties: {

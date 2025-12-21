@@ -1,20 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Eye, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Eye, ChevronDown, ChevronRight, Zap, Plus, X } from 'lucide-react';
 import './index.css';
 import { DEFAULT_ROLE, DEFAULT_LOGIC, DEFAULT_CONTENT_PROMPT } from './lib/openai';
 import { fetchNotionSchema, saveLocalSchema, generatePromptFromSchema, DEFAULT_PROPERTY_INSTRUCTIONS, type NotionSchema } from './lib/schema';
 
-// Model Options & Cost Estimation (Approx 3500 tokens total per job)
-const MODELS = [
-    { id: 'gpt-4o-mini', name: 'GPT-4o mini (推奨: 安価＆高速)', cost: '約0.15円', desc: '日常使いに最適。十分な精度と圧倒的なコストパフォーマンス。' },
-    { id: 'gpt-4o', name: 'GPT-4o (最高精度)', cost: '約4.5円', desc: '複雑な推論や微妙なニュアンスの理解が必要な場合に。' },
-    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', cost: '約0.5円', desc: '旧世代の標準モデル。' },
+// Model Definition
+interface ModelDef {
+    id: string;
+    name: string;
+    inputPrice: number; // USD per 1M tokens
+    outputPrice: number; // USD per 1M tokens
+}
+
+const DEFAULT_MODELS: ModelDef[] = [
+    { id: 'gpt-5-nano', name: 'GPT-5 Nano (最新・最安)', inputPrice: 0.08, outputPrice: 0.32 },
+    { id: 'gpt-4o-mini', name: 'GPT-4o mini', inputPrice: 0.15, outputPrice: 0.60 },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', inputPrice: 0.50, outputPrice: 1.50 },
 ];
 
 function Options() {
     const [openAIKey, setOpenAIKey] = useState('');
-    const [openaiModel, setOpenaiModel] = useState('gpt-4o-mini');
+    const [openaiModel, setOpenaiModel] = useState('gpt-5-nano');
+    const [customModels, setCustomModels] = useState<ModelDef[]>([]);
+
+    // Add Model State
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [newModel, setNewModel] = useState<Partial<ModelDef>>({});
 
     const [notionKey, setNotionKey] = useState('');
     const [notionDbId, setNotionDbId] = useState('');
@@ -34,10 +46,11 @@ function Options() {
     useEffect(() => {
         // Load settings
         chrome.storage.local.get(
-            ['openai_api_key', 'openai_model', 'notion_api_key', 'notion_db_id', 'prompt_role', 'prompt_logic', 'prompt_content', 'notion_schema', 'prompt_instructions'],
+            ['openai_api_key', 'openai_model', 'custom_models', 'notion_api_key', 'notion_db_id', 'prompt_role', 'prompt_logic', 'prompt_content', 'notion_schema', 'prompt_instructions'],
             (result) => {
                 if (result.openai_api_key) setOpenAIKey(result.openai_api_key as string);
                 if (result.openai_model) setOpenaiModel(result.openai_model as string);
+                if (result.custom_models) setCustomModels(result.custom_models as ModelDef[]);
 
                 if (result.notion_api_key) setNotionKey(result.notion_api_key as string);
                 if (result.notion_db_id) setNotionDbId(result.notion_db_id as string);
@@ -50,7 +63,6 @@ function Options() {
                     setLocalSchema(result.notion_schema as NotionSchema);
                 }
 
-                // Initialize instructions combined with defaults
                 const storedInstructions = (result.prompt_instructions as Record<string, string>) || {};
                 setPropertyInstructions({ ...DEFAULT_PROPERTY_INSTRUCTIONS, ...storedInstructions });
             }
@@ -63,6 +75,7 @@ function Options() {
             {
                 openai_api_key: openAIKey,
                 openai_model: openaiModel,
+                custom_models: customModels,
                 notion_api_key: notionKey,
                 notion_db_id: notionDbId,
                 prompt_role: promptRole,
@@ -78,8 +91,26 @@ function Options() {
         );
     };
 
+    const handleAddModel = () => {
+        if (!newModel.id || !newModel.name || !newModel.inputPrice || !newModel.outputPrice) {
+            setError("全ての項目を入力してください");
+            return;
+        }
+        const model: ModelDef = {
+            id: newModel.id,
+            name: newModel.name,
+            inputPrice: Number(newModel.inputPrice),
+            outputPrice: Number(newModel.outputPrice),
+        };
+        setCustomModels([...customModels, model]);
+        setOpenaiModel(model.id); // Switch to new model
+        setNewModel({});
+        setShowAddForm(false);
+        setError('');
+    };
+
     const resetPrompt = () => {
-        if (confirm('プロンプト設定（役割・ロジック・抽出指示・コンテンツルール）をすべてデフォルトに戻しますか？')) {
+        if (confirm('プロンプト設定をデフォルトに戻しますか？')) {
             setPromptRole(DEFAULT_ROLE);
             setPromptLogic(DEFAULT_LOGIC);
             setPromptContent(DEFAULT_CONTENT_PROMPT);
@@ -112,7 +143,15 @@ function Options() {
         }
     };
 
-    // Sort logic for display
+    // Derived Data
+    const allModels = [...DEFAULT_MODELS, ...customModels];
+    const currentModelDef = allModels.find(m => m.id === openaiModel) || DEFAULT_MODELS[0];
+
+    // Cost Calc: (Input * 3000 + Output * 500) / 1M * 150JPY
+    const costUsd = (currentModelDef.inputPrice * 3000 + currentModelDef.outputPrice * 500) / 1000000;
+    const costJpy = costUsd * 150;
+
+    // Helper for sorting properties
     const sortedProperties = localSchema ? [...localSchema.properties].sort((a, b) => {
         const priority = ["Name", "company", "Job Title", "title"];
         const ia = priority.indexOf(a.name);
@@ -122,8 +161,6 @@ function Options() {
         if (ib !== -1) return 1;
         return 0;
     }) : [];
-
-    const selectedModelInfo = MODELS.find(m => m.id === openaiModel);
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -157,54 +194,101 @@ function Options() {
                         {/* OpenAI Section */}
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="openai-key" className="block text-sm font-medium text-gray-700">
-                                    OpenAI API キー
-                                </label>
+                                <label className="block text-sm font-medium text-gray-700">OpenAI API キー</label>
                                 <input
-                                    id="openai-key"
                                     type="password"
                                     value={openAIKey}
                                     onChange={(e) => setOpenAIKey(e.target.value)}
                                     placeholder="sk-..."
-                                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                 />
-                                <a
-                                    href="https://platform.openai.com/api-keys"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-1"
-                                >
-                                    APIキーを取得 <ExternalLink size={10} />
+                                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline mt-1 inline-block">
+                                    APIキーを取得
                                 </a>
                             </div>
 
-                            {/* Model Selector */}
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                                <label htmlFor="openai-model" className="block text-sm font-bold text-gray-700 flex items-center gap-2">
-                                    <Zap size={16} className="text-yellow-500" /> 使用モデル
-                                </label>
-                                <select
-                                    id="openai-model"
-                                    value={openaiModel}
-                                    onChange={(e) => setOpenaiModel(e.target.value)}
-                                    className="mt-2 block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                                >
-                                    {MODELS.map(model => (
-                                        <option key={model.id} value={model.id}>
-                                            {model.name}
-                                        </option>
-                                    ))}
-                                </select>
+                            {/* Compact Model Selector */}
+                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                        <Zap size={16} className="text-yellow-500" /> 使用モデル
+                                    </label>
+                                    <a href="https://platform.openai.com/docs/pricing" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                                        価格表 <ExternalLink size={10} />
+                                    </a>
+                                </div>
 
-                                {selectedModelInfo && (
-                                    <div className="mt-2 text-xs">
-                                        <p className="text-gray-600 mb-1">{selectedModelInfo.desc}</p>
-                                        <div className="flex items-center gap-4 text-gray-500 bg-white p-2 rounded border border-blue-100 inline-flex">
-                                            <span className="font-bold text-blue-600">💰 コスト目安: {selectedModelInfo.cost} / 1求人</span>
-                                            <span className="text-gray-300">|</span>
-                                            <a href="https://openai.com/api/pricing/" target="_blank" rel="noreferrer" className="flex items-center gap-1 underline hover:text-blue-700">
-                                                最新の価格表 <ExternalLink size={10} />
-                                            </a>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={openaiModel}
+                                        onChange={(e) => setOpenaiModel(e.target.value)}
+                                        className="flex-1 block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                    >
+                                        {allModels.map(model => (
+                                            <option key={model.id} value={model.id}>{model.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={() => setShowAddForm(!showAddForm)}
+                                        className={`px-3 py-2 rounded-md border text-gray-600 hover:bg-gray-200 transition-colors ${showAddForm ? 'bg-gray-200' : 'bg-white'}`}
+                                        title="モデルを追加"
+                                    >
+                                        {showAddForm ? <X size={16} /> : <Plus size={16} />}
+                                    </button>
+                                </div>
+
+                                <div className="mt-1 text-right">
+                                    <p className="text-xs text-gray-500">
+                                        推定コスト: <span className="font-bold text-gray-800">{costJpy.toFixed(2)}円</span> / 1求人
+                                        <span className="text-[10px] text-gray-400 ml-1">(Input 3k + Output 0.5k tokens)</span>
+                                    </p>
+                                </div>
+
+                                {/* Add Model Form */}
+                                {showAddForm && (
+                                    <div className="mt-3 p-3 bg-white rounded border border-blue-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+                                        <h4 className="text-xs font-bold text-gray-700 mb-2">新規モデル追加</h4>
+                                        <div className="space-y-2">
+                                            <input
+                                                placeholder="Model ID (例: gpt-5-turbo)"
+                                                value={newModel.id || ''}
+                                                onChange={e => setNewModel({ ...newModel, id: e.target.value })}
+                                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                            />
+                                            <input
+                                                placeholder="表示名 (例: GPT-5 Turbo)"
+                                                value={newModel.name || ''}
+                                                onChange={e => setNewModel({ ...newModel, name: e.target.value })}
+                                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                            />
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] text-gray-500 block">Input ($/1M tokens)</label>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0.15"
+                                                        value={newModel.inputPrice || ''}
+                                                        onChange={e => setNewModel({ ...newModel, inputPrice: Number(e.target.value) })}
+                                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] text-gray-500 block">Output ($/1M tokens)</label>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0.60"
+                                                        value={newModel.outputPrice || ''}
+                                                        onChange={e => setNewModel({ ...newModel, outputPrice: Number(e.target.value) })}
+                                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={handleAddModel}
+                                                className="w-full mt-2 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700"
+                                            >
+                                                リストに追加
+                                            </button>
                                         </div>
                                     </div>
                                 )}
@@ -214,57 +298,37 @@ function Options() {
                         {/* Notion Section */}
                         <div className="pt-6 border-t border-gray-100 space-y-4">
                             <div>
-                                <label htmlFor="notion-key" className="block text-sm font-medium text-gray-700">
-                                    Notion インテグレーション
-                                </label>
+                                <label className="block text-sm font-medium text-gray-700">Notion インテグレーション</label>
                                 <input
-                                    id="notion-key"
                                     type="password"
                                     value={notionKey}
                                     onChange={(e) => setNotionKey(e.target.value)}
                                     placeholder="secret_..."
-                                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                 />
-                                <a
-                                    href="https://www.notion.so/my-integrations"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-1"
-                                >
-                                    インテグレーション作成 <ExternalLink size={10} />
-                                </a>
                             </div>
 
                             <div>
-                                <label htmlFor="notion-db" className="block text-sm font-medium text-gray-700">
-                                    Notion データベースID
-                                </label>
+                                <label className="block text-sm font-medium text-gray-700">Notion データベースID</label>
                                 <input
-                                    id="notion-db"
                                     type="text"
                                     value={notionDbId}
                                     onChange={(e) => setNotionDbId(e.target.value)}
                                     placeholder="Database ID"
-                                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    データベースのURLに含まれています： notion.so/.../<b>database_id</b>?...
-                                </p>
                             </div>
 
-                            {/* Schema Sync Button */}
-                            <div className="mt-2 p-4 bg-gray-50 rounded-lg flex items-center justify-between border border-gray-200">
+                            {/* Schema Sync */}
+                            <div className="mt-2 p-3 bg-gray-50 rounded-lg flex items-center justify-between border border-gray-200">
                                 <div>
                                     <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
                                         <Database size={16} /> Notionスキーマ同期
                                     </h4>
-                                    <p className="text-xs text-gray-600 mt-1">
-                                        Notionのプロパティ構造を同期します。
-                                    </p>
-                                    {localSchema && (
-                                        <p className="text-[10px] text-gray-400 mt-1">
-                                            最終同期: {new Date(localSchema.fetchedAt).toLocaleString()}
-                                        </p>
+                                    {localSchema ? (
+                                        <p className="text-[10px] text-gray-500 mt-1">最終同期: {new Date(localSchema.fetchedAt).toLocaleString()}</p>
+                                    ) : (
+                                        <p className="text-[10px] text-red-400 mt-1">未同期</p>
                                     )}
                                 </div>
                                 <button
@@ -274,7 +338,7 @@ function Options() {
                                         }`}
                                 >
                                     <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-                                    {loading ? '同期中...' : '同期する'}
+                                    {loading ? '同期' : '同期'}
                                 </button>
                             </div>
                         </div>
@@ -301,7 +365,6 @@ function Options() {
                             <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
                                 🤖 役割・目的
                             </label>
-                            <p className="text-xs text-gray-500">AIのエージェント設定と主な目的を定義します。</p>
                             <textarea
                                 value={promptRole}
                                 onChange={(e) => setPromptRole(e.target.value)}
@@ -310,7 +373,7 @@ function Options() {
                             />
                         </div>
 
-                        {/* 2. Schema List (Editable Instructions) */}
+                        {/* 2. Schema List */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <label className="block text-sm font-bold text-gray-700 flex items-center gap-1">
@@ -322,10 +385,6 @@ function Options() {
                                     </span>
                                 )}
                             </div>
-
-                            <p className="text-xs text-gray-500">
-                                Notionの各プロパティに対して、AIへの抽出指示をカスタマイズできます。
-                            </p>
 
                             {localSchema ? (
                                 <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
@@ -341,26 +400,15 @@ function Options() {
                                             {sortedProperties.map((prop) => (
                                                 !['created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(prop.type) && (
                                                     <tr key={prop.id}>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                            {prop.name}
-                                                        </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                                                {prop.type}
-                                                            </span>
-                                                            {prop.options && prop.options.length > 0 && (
-                                                                <div className="mt-1 text-[10px] text-gray-400 break-words whitespace-normal max-w-[200px] leading-tight">
-                                                                    Options: [{prop.options.join(", ")}]
-                                                                </div>
-                                                            )}
-                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{prop.name}</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">{prop.type}</td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
                                                             <input
                                                                 type="text"
                                                                 value={propertyInstructions[prop.name] || ''}
                                                                 onChange={(e) => updateInstruction(prop.name, e.target.value)}
-                                                                placeholder="例: 正式名称で抽出"
                                                                 className="w-full border-none focus:ring-0 text-xs bg-transparent p-0 placeholder-gray-300"
+                                                                placeholder="抽出指示..."
                                                             />
                                                         </td>
                                                     </tr>
@@ -383,7 +431,7 @@ function Options() {
                                         {showPreview && (
                                             <div className="mt-2 p-2">
                                                 <p className="text-[10px] text-gray-500 mb-1">
-                                                    ※ 以下のテキストが、プロパティの定義としてAIに送信されます。自動的にOptionsが含まれていることを確認できます。
+                                                    ※ 以下のテキストが、プロパティの定義としてAIに送信されます。
                                                 </p>
                                                 <div className="text-[10px] font-mono text-gray-700 whitespace-pre-wrap h-40 overflow-y-auto border border-gray-200 bg-white p-2 rounded shadow-inner">
                                                     {generatePromptFromSchema(localSchema, propertyInstructions)}
@@ -393,20 +441,13 @@ function Options() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="p-4 bg-gray-100 rounded-md text-center text-xs text-gray-500">
-                                    スキーマが読み込まれていません。API設定画面で「同期」を行ってください。
-                                </div>
+                                <div className="p-4 bg-gray-100 rounded text-center text-xs text-gray-500">スキーマ未同期</div>
                             )}
                         </div>
 
                         {/* 3. Logic */}
                         <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-700">
-                                🧠 判定ロジック
-                            </label>
-                            <p className="text-xs text-gray-500">
-                                Booleanフラグ（残業、リモートなど）の判定基準を定義します。
-                            </p>
+                            <label className="block text-sm font-bold text-gray-700">🧠 判定ロジック</label>
                             <textarea
                                 value={promptLogic}
                                 onChange={(e) => setPromptLogic(e.target.value)}
@@ -417,12 +458,7 @@ function Options() {
 
                         {/* 4. Content */}
                         <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-700">
-                                📝 コンテンツ生成ルール
-                            </label>
-                            <p className="text-xs text-gray-500">
-                                Markdownでの要約形式を定義します（見出し、箇条書きなど）。
-                            </p>
+                            <label className="block text-sm font-bold text-gray-700">📝 コンテンツ生成ルール</label>
                             <textarea
                                 value={promptContent}
                                 onChange={(e) => setPromptContent(e.target.value)}
