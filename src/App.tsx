@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X } from 'lucide-react';
 import { analyzeJobPost, type AnalyzeResult } from './lib/openai';
 import { saveJobToNotion, updateJobInNotion } from './lib/notion';
-import { fetchNotionSchema, loadLocalSchema, saveLocalSchema, compareSchemas, hasSchemaDiff, type NotionSchema, type SchemaDiff } from './lib/schema';
+import { fetchNotionSchema, loadLocalSchema, saveLocalSchema, compareSchemas, hasSchemaDiff, generatePromptFromSchema, type NotionSchema, type SchemaDiff } from './lib/schema';
 import { DynamicFields } from './components/DynamicFields';
 
 function App() {
@@ -69,12 +69,39 @@ function App() {
     setSavedPageId(null);
 
     try {
-      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt']);
+      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt', 'prompt_role', 'prompt_logic']);
       const apiKey = storage.openai_api_key;
       const userProfile = (storage.user_profile as string) || "";
-      const customPrompt = (storage.custom_prompt as string) || undefined;
 
-      if (!apiKey) {
+      // Prompt Assembly Logic
+      // 1. Backward compatibility: If specific prompts are missing but custom_prompt exists, use it.
+      // 2. Otherwise assemble: Role + Schema(generated) + Logic
+
+      let finalPrompt = storage.custom_prompt as string; // Default fallback
+
+      // If we have specific components, prioritize them (or if custom_prompt is empty)
+      if (storage.prompt_role || storage.prompt_logic || !finalPrompt) {
+        const role = storage.prompt_role || (await import('./lib/openai')).DEFAULT_ROLE;
+        const logic = storage.prompt_logic || (await import('./lib/openai')).DEFAULT_LOGIC;
+
+        let schemaPrompt = "";
+        if (schema) {
+          schemaPrompt = generatePromptFromSchema(schema);
+        } else {
+          // Fallback if no schema synced yet? 
+          // Using generatePromptFromSchema with empty/dummy might be bad.
+          // We should probably rely on DEFAULT_PROMPT structure if no schema is found, 
+          // BUT we want to enforce the component structure.
+          // Let's assume if no schema, we skip the middle part or use a warning?
+          // Ideally user MUST sync schema.
+          console.warn("No Notion Schema found. Prompt might be incomplete.");
+        }
+
+        finalPrompt = `${role}\n\n${schemaPrompt}\n\n${logic}`;
+      }
+
+      const apiKeyStr = apiKey as string;
+      if (!apiKeyStr) {
         setApiKeyMissing(true);
         setLoading(false);
         setAnalyzing(false);
@@ -100,7 +127,7 @@ function App() {
         throw new Error("Could not read page content. Try reloading the page.");
       }
 
-      const data = await analyzeJobPost(pageText, pageUrl, apiKey as string, userProfile, customPrompt);
+      const data = await analyzeJobPost(pageText, pageUrl, apiKeyStr, userProfile, finalPrompt);
       setResult(data);
 
     } catch (err: any) {

@@ -30,10 +30,21 @@ export interface AnalyzeResult {
     markdown_content: string;
 }
 
-export const DEFAULT_PROMPT = `You are a career assistant "Jobscope".
+export const DEFAULT_ROLE = `You are a career assistant "Jobscope".
 Analyze the Job Description and extract key information.
 
-IMPORTANT: All values must be PLAIN STRINGS or NUMBERS. Do NOT use nested objects.
+IMPORTANT: All values must be PLAIN STRINGS or NUMBERS. Do NOT use nested objects.`;
+
+export const DEFAULT_LOGIC = `Boolean flags - detect from job description keywords:
+- autonomy: true if mentions 裁量権, 自由度が高い, フラットな組織, 自律的, セルフスターター
+- feedback: true if mentions 1on1, フィードバック, 評価制度, 成長支援, メンター制度
+- teamwork: true if mentions チームワーク, 協調性, コラボレーション, チーム開発
+- long_commute: true if commute > 60min OR location is far from major stations
+- overwork: true if mentions 残業多め, 繁忙期, ハードワーク, 深夜対応, OR no work-life balance mention
+
+Output EXACTLY this JSON format:`;
+
+export const DEFAULT_PROMPT = `${DEFAULT_ROLE}
 
 Extract these fields:
 - company: String. Company name. Abbreviate 株式会社 to ㈱ (e.g., 株式会社ABC → ㈱ABC)
@@ -52,14 +63,7 @@ Extract these fields:
 - skills: Array of strings. Technical skills mentioned in job (max 10)
 - match: String. One of: excellent, good, fair, poor (compare with user profile if provided)
 
-Boolean flags - detect from job description keywords:
-- autonomy: true if mentions 裁量権, 自由度が高い, フラットな組織, 自律的, セルフスターター
-- feedback: true if mentions 1on1, フィードバック, 評価制度, 成長支援, メンター制度
-- teamwork: true if mentions チームワーク, 協調性, コラボレーション, チーム開発
-- long_commute: true if commute > 60min OR location is far from major stations
-- overwork: true if mentions 残業多め, 繁忙期, ハードワーク, 深夜対応, OR no work-life balance mention
-
-Output EXACTLY this JSON format:
+${DEFAULT_LOGIC}
 {
   "properties": {
     "company": "㈱Example",

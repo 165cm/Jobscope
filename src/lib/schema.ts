@@ -125,35 +125,120 @@ export function hasSchemaDiff(diff: SchemaDiff): boolean {
     return diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
 }
 
+// Map known property names to specific extraction instructions
+const PROPERTY_INSTRUCTIONS: Record<string, string> = {
+    "company": "Company name. Abbreviate 株式会社 to ㈱ (e.g., 株式会社ABC → ㈱ABC)",
+    "Name": "Company name. Abbreviate 株式会社 to ㈱ (e.g., 株式会社ABC → ㈱ABC)",
+    "title": "Job title (exclude company name)",
+    "Job Title": "Job title (exclude company name)",
+    "source": "Detect from URL/Context (e.g. Green, Wantedly, etc.)",
+    "employment": "Employment type",
+    "salary_min": "Annual salary minimum in 万円 (e.g., 5,000,000円 → 500)",
+    "salary_max": "Annual salary maximum in 万円",
+    "location": "Work location (e.g., 東京都...)",
+    "station": "Nearest station",
+    "employees": "Employee count",
+    "avg_age": "Average age",
+    "age_limit": "Age limit if any",
+    "skills": "Technical skills (max 10, comma separated strings)",
+    "match": "Match level based on user profile",
+    "autonomy": "Boolean flag",
+    "feedback": "Boolean flag",
+    "teamwork": "Boolean flag",
+    "long_commute": "Boolean flag",
+    "overwork": "Boolean flag"
+};
+
 // Generate default prompt from schema
 export function generatePromptFromSchema(schema: NotionSchema): string {
     let prompt = `Extract the following fields for Notion Properties:\n`;
 
-    for (const prop of schema.properties) {
+    // specific sort order? For now, alphabetical or schema order is fine.
+    // Maybe move "Name" and "Job Title" to top?
+    const properties = [...schema.properties].sort((a, b) => {
+        const priority = ["Name", "company", "Job Title", "title"];
+        const ia = priority.indexOf(a.name);
+        const ib = priority.indexOf(b.name);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return 0;
+    });
+
+    // 1. Extraction Rules
+    for (const prop of properties) {
+        // Skip read-only/system fields provided by Notion automatically
+        if (['created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(prop.type)) continue;
+
         const typeHint = getTypeHint(prop);
-        prompt += `- ${prop.name} (${prop.type})${typeHint}\n`;
+        const instruction = PROPERTY_INSTRUCTIONS[prop.name] || PROPERTY_INSTRUCTIONS[prop.name.toLowerCase()] || "";
+
+        let line = `- ${prop.name}: ${typeHint}`;
+        if (instruction) {
+            line += `. ${instruction}`;
+        }
+        if (prop.options && prop.options.length > 0) {
+            line += `. Options: [${prop.options.join(", ")}]`;
+        }
+
+        prompt += `${line}\n`;
     }
+
+    // 2. JSON Structure Example
+    prompt += `\nOutput EXACTLY this JSON format (fill values based on extraction):\n{\n  "properties": {\n`;
+
+    const jsonLines: string[] = [];
+    for (const prop of properties) {
+        if (['created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(prop.type)) continue;
+
+        const exampleValue = getExampleValue(prop);
+        jsonLines.push(`    "${prop.name}": ${JSON.stringify(exampleValue)}`);
+    }
+
+    prompt += jsonLines.join(",\n");
+    prompt += `\n  },\n  "markdown_content": "# Job Summary..."\n}`;
 
     return prompt;
 }
 
-function getTypeHint(prop: NotionProperty): string {
-    if (prop.options && prop.options.length > 0) {
-        return `: Options=[${prop.options.join(", ")}]`;
+function getExampleValue(prop: NotionProperty): any {
+    switch (prop.type) {
+        case "title": return "Title Example";
+        case "rich_text": return "Text Example";
+        case "number": return 100;
+        case "checkbox": return false;
+        case "url": return "https://example.com";
+        case "email": return "example@mail.com";
+        case "phone_number": return "090-1234-5678";
+        case "date": return "2024-01-01";
+        case "select": return prop.options && prop.options.length > 0 ? prop.options[0] : "SelectOption";
+        case "multi_select": return prop.options && prop.options.length > 0 ? [prop.options[0]] : ["Tags"];
+        default: return "Value";
     }
+}
+
+function getTypeHint(prop: NotionProperty): string {
     switch (prop.type) {
         case "title":
         case "rich_text":
-            return ": string";
+            return "String";
         case "number":
-            return ": number";
+            return "Number or null";
         case "checkbox":
-            return ": boolean";
+            return "Boolean";
         case "url":
-            return ": URL string";
+            return "URL String";
+        case "email":
+            return "Email String";
+        case "phone_number":
+            return "Phone Number String";
         case "date":
-            return ": YYYY-MM-DD";
+            return "Date (YYYY-MM-DD)";
+        case "select":
+            return "String (Exact match)";
+        case "multi_select":
+            return "Array of Strings";
         default:
-            return "";
+            return "String";
     }
 }
