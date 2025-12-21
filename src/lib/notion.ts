@@ -34,7 +34,6 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
     const aiProps = data.properties;
 
     // Mapping for default AI keys to potential Notion property names
-    // Accessing aiProps with these keys if direct match fails
     const ALIAS_MAP: Record<string, string[]> = {
         "Name": ["company", "Company", "会社名", "企業名"],
         "Job Title": ["title", "Title", "role", "Role", "役職", "職種"],
@@ -47,6 +46,7 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
         "Salary Max": ["salary_max"],
         "Location": ["location", "place", "勤務地"],
         "Skills": ["skills", "tech", "技術スタック", "スキル"],
+        "Web": ["site", "web", "website", "hp", "company_url", "会社HP"],
     };
 
     // Helper to find value in aiProps
@@ -61,7 +61,7 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
             }
         }
 
-        // 3. Try standard defaults if name is generic (case insensitive match?)
+        // 3. Try standard defaults if name is generic (case insensitive match)
         const lowerName = notionPropName.toLowerCase();
         for (const key of Object.keys(aiProps)) {
             if (key.toLowerCase() === lowerName) return aiProps[key];
@@ -76,18 +76,45 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
             continue;
         }
 
-        let value = getValue(prop.name);
+        const lowerName = prop.name.toLowerCase();
 
-        // Special Case: URL property should default to jobUrl if not extracted by AI
-        if ((value === undefined || value === null) && (prop.type === 'url' || prop.name.toLowerCase() === 'url')) {
-            value = jobUrl;
+        // [Logic 1] Force Job Post URL for specific named URL properties
+        // If type is URL and name implies job link/source, use the browser's current URL (jobUrl)
+        if (prop.type === 'url' && (
+            lowerName === 'url' ||
+            lowerName === 'job url' ||
+            lowerName === 'link' ||
+            lowerName === 'source url' ||
+            lowerName === 'source' // user specific request: Source -> Job Info (URL)
+        )) {
+            notionProperties[prop.name] = { url: jobUrl };
+            continue;
         }
 
-        // If still undefined/null and not a checkbox/number/multi-select (which can handle nulls/defaults), skip?
-        // Checkbox must be boolean, others can be null usually.
+        // [Logic 2] Company Website special handling
+        // If type is URL and name implies company site, look for extracted website
+        if (prop.type === 'url' && (
+            lowerName === 'web' ||
+            lowerName === 'website' ||
+            lowerName === 'hp' ||
+            lowerName === 'company site' ||
+            lowerName === '会社hp'
+        )) {
+            const siteVal = getValue(prop.name); // Will try aliases like 'site', 'web'
+            notionProperties[prop.name] = { url: ensureString(siteVal) || null };
+            continue;
+        }
 
-        // If value is undefined, we generally preserve existing value (for update) or default (for create).
-        // Since this is constructing a payload, passing 'undefined' usually creates nothing.
+        let value = getValue(prop.name);
+
+        // Fallback for URL property if generic 'url' wasn't caught above but is type url
+        if ((value === undefined || value === null) && prop.type === 'url') {
+            // If property is named generic 'url' but not caught above (e.g. capitalized differently?), use jobUrl
+            if (lowerName === 'url') {
+                value = jobUrl;
+            }
+        }
+
         if (value === undefined) continue;
 
         try {
@@ -103,27 +130,23 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                     };
                     break;
                 case 'number':
-                    // Parse number if string
                     let num = value;
                     if (typeof num === 'string') {
-                        num = parseFloat(num.replace(/[^0-9.-]/g, '')); // remove commas/currency
+                        num = parseFloat(num.replace(/[^0-9.-]/g, ''));
                     }
                     notionProperties[prop.name] = {
                         number: isNaN(num) || num === '' ? null : Number(num)
                     };
                     break;
                 case 'select':
-                    // Notion validation: Option must match schema or be created if API allows (API allows creating if not exists? Select options usually auto-create?)
-                    // Actually, select options are auto-created by API if they don't exist, provided the name is valid.
-                    const strVal = ensureString(value);
-                    if (strVal) {
-                        notionProperties[prop.name] = { select: { name: strVal } };
+                    const strValSelect = ensureString(value);
+                    if (strValSelect) {
+                        notionProperties[prop.name] = { select: { name: strValSelect } };
                     }
                     break;
                 case 'multi_select':
                     const vals = Array.isArray(value) ? value : (value ? [value] : []);
                     const options = vals.map((v: any) => ({ name: ensureString(v).replace(/,/g, '') })).filter((o: any) => o.name);
-                    // Limit to some reasonable number if needed?
                     notionProperties[prop.name] = { multi_select: options };
                     break;
                 case 'checkbox':
@@ -139,14 +162,11 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                     notionProperties[prop.name] = { phone_number: ensureString(value) || null };
                     break;
                 case 'date':
-                    // Very simple date handling. AI usually returns string.
                     const dateStr = ensureString(value);
                     if (dateStr) {
-                        // Validate format or try to construct ISO? Notion needs ISO 8601.
-                        // If AI returns "Invalid Date", skip.
                         const d = new Date(dateStr);
                         if (!isNaN(d.getTime())) {
-                            notionProperties[prop.name] = { date: { start: d.toISOString().split('T')[0] } }; // Date only
+                            notionProperties[prop.name] = { date: { start: d.toISOString().split('T')[0] } };
                         }
                     }
                     break;
@@ -169,14 +189,9 @@ export async function saveJobToNotion(
     const url = 'https://api.notion.com/v1/pages';
     const properties = mapProperties(data, schema, jobUrl);
 
-    // Safety check: ensure at least one property (Name/title) is set, otherwise Notion might error if required fields missing?
-    // Notion API requires 'parent', but properties can be empty (creates empty page).
-    // However, usually we want at least the title.
-
-    // If Title property is missing in mapping, force correct usage of Name/company
+    // Fallback if Title is missing
     const titleProp = schema.properties.find(p => p.type === 'title');
     if (titleProp && !properties[titleProp.name]) {
-        // Fallback: use company or generic name
         const fallbackTitle = data.properties.company || data.properties.title || "Untitled Job";
         properties[titleProp.name] = { title: [{ text: { content: ensureString(fallbackTitle) } }] };
     }

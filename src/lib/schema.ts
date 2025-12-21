@@ -131,7 +131,22 @@ export const DEFAULT_PROPERTY_INSTRUCTIONS: Record<string, string> = {
     "Name": "Company name. Abbreviate 株式会社 to ㈱ (e.g., 株式会社ABC → ㈱ABC)",
     "title": "Job title (exclude company name)",
     "Job Title": "Job title (exclude company name)",
-    "source": "Detect from URL/Context (e.g. Green, Wantedly, etc.)",
+
+    // User requested clarifications:
+    "source": "求人媒体の名前 (Media Name e.g. Green, Wantedly). Do NOT put URL here.",
+    "Source": "求人媒体の名前 (Media Name e.g. Green, Wantedly). Do NOT put URL here.",
+    "媒体": "求人媒体の名前 (Media Name e.g. Green, Wantedly).",
+
+    "web": "企業の公式HPのURL (Company Website). NOT the job post URL.",
+    "Web": "企業の公式HPのURL (Company Website).",
+    "website": "企業の公式HPのURL (Company Website).",
+    "Website": "企業の公式HPのURL (Company Website).",
+    "会社HP": "企業の公式HPのURL (Company Website).",
+
+    "url": "求人ページのURL (Job Post URL). System will autofill this, so leave empty unless specific.",
+    "URL": "求人ページのURL (Job Post URL). System will autofill this, so leave empty unless specific.",
+    "Link": "求人ページのURL (Job Post URL).",
+
     "employment": "Employment type",
     "salary_min": "Annual salary minimum in 万円 (e.g., 5,000,000円 → 500)",
     "salary_max": "Annual salary maximum in 万円",
