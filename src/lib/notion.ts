@@ -126,3 +126,108 @@ export async function updateJobInNotion(
     const result = await response.json();
     return { url: result.url, id: result.id };
 }
+
+export interface JobscopeConfig {
+    prompt_role?: string;
+    prompt_logic?: string;
+    prompt_instructions?: Record<string, string>;
+    last_updated?: string;
+}
+
+export async function saveConfigToPage(pageId: string, apiKey: string, config: JobscopeConfig): Promise<void> {
+    const url = `https://api.notion.com/v1/blocks/${pageId}/children`;
+
+    // Create a new code block with the config JSON
+    const payload = {
+        children: [
+            {
+                object: 'block',
+                type: 'heading_2', // Marker
+                heading_2: {
+                    rich_text: [{ type: 'text', text: { content: 'Jobscope Config Backup' } }]
+                }
+            },
+            {
+                object: 'block',
+                type: 'code',
+                code: {
+                    language: 'json',
+                    rich_text: [{ type: 'text', text: { content: JSON.stringify(config, null, 2) } }]
+                }
+            },
+            {
+                object: 'block',
+                type: 'paragraph',
+                paragraph: {
+                    rich_text: [
+                        { type: 'text', text: { content: `Updated at: ${new Date().toLocaleString()}`, annotations: { italic: true, color: 'gray' } } }
+                    ]
+                }
+            },
+            {
+                object: 'block',
+                type: 'divider',
+                divider: {}
+            }
+        ]
+    };
+
+    const response = await fetch(url, {
+        method: 'PATCH', // append children
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Failed to save config: ${error.message}`);
+    }
+}
+
+export async function loadConfigFromPage(pageId: string, apiKey: string): Promise<JobscopeConfig> {
+    const url = `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`;
+
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Notion-Version': '2022-06-28',
+        },
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Failed to load config: ${error.message}`);
+    }
+
+    const data = await response.json();
+    const blocks = data.results;
+
+    // Find the last code block
+    let config: JobscopeConfig | null = null;
+
+    for (const block of blocks) {
+        if (block.type === 'code' && block.code) {
+            try {
+                const text = block.code.rich_text.map((t: any) => t.plain_text).join('');
+                const parsed = JSON.parse(text);
+                // Simple validation check
+                if (parsed.prompt_role || parsed.prompt_logic || parsed.prompt_instructions) {
+                    config = parsed;
+                }
+            } catch (e) {
+                // ignore non-json blocks
+            }
+        }
+    }
+
+    if (!config) {
+        throw new Error("No valid configuration found on this page.");
+    }
+
+    return config;
+}

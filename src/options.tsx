@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle } from 'lucide-react';
+import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Download, Upload, FileText } from 'lucide-react';
 import './index.css';
 import { DEFAULT_ROLE, DEFAULT_LOGIC } from './lib/openai';
 import { fetchNotionSchema, saveLocalSchema, DEFAULT_PROPERTY_INSTRUCTIONS, type NotionSchema } from './lib/schema';
+import { saveConfigToPage, loadConfigFromPage, type JobscopeConfig } from './lib/notion';
 
 function Options() {
     const [openAIKey, setOpenAIKey] = useState('');
     const [notionKey, setNotionKey] = useState('');
     const [notionDbId, setNotionDbId] = useState('');
+    const [configPageUrl, setConfigPageUrl] = useState('');
 
     // Split Prompt States
     const [promptRole, setPromptRole] = useState(DEFAULT_ROLE);
@@ -24,11 +26,12 @@ function Options() {
     useEffect(() => {
         // Load settings
         chrome.storage.local.get(
-            ['openai_api_key', 'notion_api_key', 'notion_db_id', 'prompt_role', 'prompt_logic', 'notion_schema', 'prompt_instructions'],
+            ['openai_api_key', 'notion_api_key', 'notion_db_id', 'notion_config_page_url', 'prompt_role', 'prompt_logic', 'notion_schema', 'prompt_instructions'],
             (result) => {
                 if (result.openai_api_key) setOpenAIKey(result.openai_api_key as string);
                 if (result.notion_api_key) setNotionKey(result.notion_api_key as string);
                 if (result.notion_db_id) setNotionDbId(result.notion_db_id as string);
+                if (result.notion_config_page_url) setConfigPageUrl(result.notion_config_page_url as string);
 
                 if (result.prompt_role) setPromptRole(result.prompt_role as string);
                 if (result.prompt_logic) setPromptLogic(result.prompt_logic as string);
@@ -51,6 +54,7 @@ function Options() {
                 openai_api_key: openAIKey,
                 notion_api_key: notionKey,
                 notion_db_id: notionDbId,
+                notion_config_page_url: configPageUrl,
                 prompt_role: promptRole,
                 prompt_logic: promptLogic,
                 prompt_instructions: propertyInstructions,
@@ -61,6 +65,82 @@ function Options() {
                 setTimeout(() => setStatus(''), 2000);
             }
         );
+    };
+
+    const extractIdFromUrl = (url: string): string | null => {
+        // Match 32 char hex string at end of path or query param
+        const match = url.match(/([a-f0-9]{32})/);
+        return match ? match[1] : null;
+    };
+
+    const handlePushConfig = async () => {
+        const pageId = extractIdFromUrl(configPageUrl);
+        if (!notionKey || !pageId) {
+            setError('Notion API Keyと有効な設定用ページURLが必要です');
+            return;
+        }
+        if (!confirm('設定用ページに現在の設定を追記しますか？（ページの末尾に追加されます）')) return;
+
+        setLoading(true);
+        setError('');
+        try {
+            const config: JobscopeConfig = {
+                prompt_role: promptRole,
+                prompt_logic: promptLogic,
+                prompt_instructions: propertyInstructions,
+                last_updated: new Date().toISOString()
+            };
+            await saveConfigToPage(pageId, notionKey, config);
+
+            // Also save local storage to remember URL
+            chrome.storage.local.set({ notion_config_page_url: configPageUrl });
+
+            setStatus('Notionに設定を保存(Push)しました！');
+        } catch (err: any) {
+            console.error(err);
+            setError('保存に失敗しました: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePullConfig = async () => {
+        const pageId = extractIdFromUrl(configPageUrl);
+        if (!notionKey || !pageId) {
+            setError('Notion API Keyと有効な設定用ページURLが必要です');
+            return;
+        }
+        if (!confirm('Notionから設定を読み込みますか？現在の変更は上書きされます。')) return;
+
+        setLoading(true);
+        setError('');
+        try {
+            const config = await loadConfigFromPage(pageId, notionKey);
+
+            if (config.prompt_role) setPromptRole(config.prompt_role);
+            if (config.prompt_logic) setPromptLogic(config.prompt_logic);
+            if (config.prompt_instructions) {
+                setPropertyInstructions({ ...DEFAULT_PROPERTY_INSTRUCTIONS, ...config.prompt_instructions });
+            }
+
+            // Save immediately to local
+            chrome.storage.local.set({
+                prompt_role: config.prompt_role || promptRole,
+                prompt_logic: config.prompt_logic || promptLogic,
+                prompt_instructions: config.prompt_instructions || propertyInstructions,
+                notion_config_page_url: configPageUrl // remember URL
+            });
+
+            // Reload instructions state properly if partial update
+            // (The setPropertyInstructions above already merges default, so it is safer)
+
+            setStatus('Notionから設定を復元(Pull)しました！');
+        } catch (err: any) {
+            console.error(err);
+            setError('読み込みに失敗しました: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const resetPrompt = () => {
@@ -124,7 +204,7 @@ function Options() {
                         onClick={() => setActiveTab('api')}
                         className={`px-4 py-2 text-sm font-medium ${activeTab === 'api' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
                     >
-                        🔑 APIキー
+                        🔑 APIキー & 同期
                     </button>
                     <button
                         onClick={() => setActiveTab('prompt')}
@@ -222,6 +302,56 @@ function Options() {
                                 <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                                 {loading ? '同期中...' : '同期する'}
                             </button>
+                        </div>
+
+                        {/* Config Push/Pull - New Section */}
+                        <div className="mt-4 p-4 bg-purple-50 rounded-lg space-y-3">
+                            <div>
+                                <h4 className="text-sm font-bold text-purple-800 flex items-center gap-2">
+                                    <FileText size={16} /> 設定のクラウド同期
+                                </h4>
+                                <p className="text-xs text-purple-600 mt-1">
+                                    任意のNotionページを使って、プロンプト設定（役割・ロジック・抽出ルール）を保存・共有できます。
+                                </p>
+                            </div>
+
+                            <div>
+                                <label htmlFor="config-url" className="text-xs font-bold text-purple-700 block mb-1">
+                                    設定保存用ページのURL
+                                </label>
+                                <input
+                                    id="config-url"
+                                    type="text"
+                                    value={configPageUrl}
+                                    onChange={(e) => setConfigPageUrl(e.target.value)}
+                                    placeholder="https://notion.so/My-Config-Page-123..."
+                                    className="w-full px-2 py-1.5 border border-purple-200 rounded text-xs focus:ring-purple-500 focus:border-purple-500 placeholder-purple-300"
+                                />
+                                <p className="text-[10px] text-purple-400 mt-1">
+                                    空白の新規ページを作成し、そのURLを貼ってください。
+                                </p>
+                            </div>
+
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={handlePullConfig}
+                                    disabled={loading || !configPageUrl}
+                                    className={`px-3 py-1.5 rounded text-xs font-bold text-white transition-colors flex items-center gap-1 ${loading || !configPageUrl ? 'bg-purple-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
+                                        }`}
+                                >
+                                    <Download size={12} />
+                                    Notionから復元 (Pull)
+                                </button>
+                                <button
+                                    onClick={handlePushConfig}
+                                    disabled={loading || !configPageUrl}
+                                    className={`px-3 py-1.5 rounded text-xs font-bold text-white transition-colors flex items-center gap-1 ${loading || !configPageUrl ? 'bg-purple-300 cursor-not-allowed' : 'bg-purple-500 hover:bg-purple-600'
+                                        }`}
+                                >
+                                    <Upload size={12} />
+                                    Notionへ保存 (Push)
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
