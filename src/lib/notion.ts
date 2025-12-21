@@ -160,7 +160,11 @@ export async function saveConfigToPage(pageId: string, apiKey: string, config: J
                 type: 'paragraph',
                 paragraph: {
                     rich_text: [
-                        { type: 'text', text: { content: `Updated at: ${new Date().toLocaleString()}`, annotations: { italic: true, color: 'gray' } } }
+                        {
+                            type: 'text',
+                            text: { content: `Updated at: ${new Date().toLocaleString()}` },
+                            annotations: { italic: true, color: 'gray' }
+                        }
                     ]
                 }
             },
