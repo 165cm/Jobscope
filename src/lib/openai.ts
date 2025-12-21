@@ -113,9 +113,11 @@ export async function analyzeJobPost(
     url: string,
     apiKey: string,
     userProfile: string = "",
-    customPrompt?: string
+    customPrompt?: string,
+    model?: string
 ): Promise<AnalyzeResult> {
     const basePrompt = customPrompt || DEFAULT_PROMPT;
+    const modelToUse = model || MODEL_NAME;
 
     const prompt = `${basePrompt}
 
@@ -135,7 +137,7 @@ ${userProfile || 'No specific user profile provided.'}
             Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-            model: MODEL_NAME,
+            model: modelToUse,
             messages: [
                 { role: "system", content: "You are a helpful assistant that outputs JSON." },
                 { role: "user", content: prompt },

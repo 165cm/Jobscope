@@ -69,9 +69,10 @@ function App() {
     setSavedPageId(null);
 
     try {
-      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt', 'prompt_role', 'prompt_logic', 'prompt_content', 'prompt_instructions']);
+      const storage = await chrome.storage.local.get(['openai_api_key', 'user_profile', 'custom_prompt', 'prompt_role', 'prompt_logic', 'prompt_content', 'prompt_instructions', 'openai_model']);
       const apiKey = storage.openai_api_key;
       const userProfile = (storage.user_profile as string) || "";
+      const model = storage.openai_model as string | undefined;
 
       // Prompt Assembly Logic
       // 1. Backward compatibility: If specific prompts are missing but custom_prompt exists, use it.
@@ -123,7 +124,7 @@ function App() {
         throw new Error("Could not read page content. Try reloading the page.");
       }
 
-      const data = await analyzeJobPost(pageText, pageUrl, apiKeyStr, userProfile, finalPrompt);
+      const data = await analyzeJobPost(pageText, pageUrl, apiKeyStr, userProfile, finalPrompt, model);
       setResult(data);
 
     } catch (err: any) {

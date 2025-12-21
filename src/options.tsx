@@ -1,16 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Eye, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, Lock, ExternalLink, RefreshCw, Wand2, Database, AlertCircle, Eye, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import './index.css';
 import { DEFAULT_ROLE, DEFAULT_LOGIC, DEFAULT_CONTENT_PROMPT } from './lib/openai';
 import { fetchNotionSchema, saveLocalSchema, generatePromptFromSchema, DEFAULT_PROPERTY_INSTRUCTIONS, type NotionSchema } from './lib/schema';
 
+// Model Options & Cost Estimation (Approx 3500 tokens total per job)
+const MODELS = [
+    { id: 'gpt-4o-mini', name: 'GPT-4o mini (推奨: 安価＆高速)', cost: '約0.15円', desc: '日常使いに最適。十分な精度と圧倒的なコストパフォーマンス。' },
+    { id: 'gpt-4o', name: 'GPT-4o (最高精度)', cost: '約4.5円', desc: '複雑な推論や微妙なニュアンスの理解が必要な場合に。' },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', cost: '約0.5円', desc: '旧世代の標準モデル。' },
+];
+
 function Options() {
     const [openAIKey, setOpenAIKey] = useState('');
+    const [openaiModel, setOpenaiModel] = useState('gpt-4o-mini');
+
     const [notionKey, setNotionKey] = useState('');
     const [notionDbId, setNotionDbId] = useState('');
 
-    // Split Prompt States
     const [promptRole, setPromptRole] = useState(DEFAULT_ROLE);
     const [promptLogic, setPromptLogic] = useState(DEFAULT_LOGIC);
     const [promptContent, setPromptContent] = useState(DEFAULT_CONTENT_PROMPT);
@@ -26,9 +34,11 @@ function Options() {
     useEffect(() => {
         // Load settings
         chrome.storage.local.get(
-            ['openai_api_key', 'notion_api_key', 'notion_db_id', 'prompt_role', 'prompt_logic', 'prompt_content', 'notion_schema', 'prompt_instructions'],
+            ['openai_api_key', 'openai_model', 'notion_api_key', 'notion_db_id', 'prompt_role', 'prompt_logic', 'prompt_content', 'notion_schema', 'prompt_instructions'],
             (result) => {
                 if (result.openai_api_key) setOpenAIKey(result.openai_api_key as string);
+                if (result.openai_model) setOpenaiModel(result.openai_model as string);
+
                 if (result.notion_api_key) setNotionKey(result.notion_api_key as string);
                 if (result.notion_db_id) setNotionDbId(result.notion_db_id as string);
 
@@ -52,6 +62,7 @@ function Options() {
         chrome.storage.local.set(
             {
                 openai_api_key: openAIKey,
+                openai_model: openaiModel,
                 notion_api_key: notionKey,
                 notion_db_id: notionDbId,
                 prompt_role: promptRole,
@@ -112,6 +123,8 @@ function Options() {
         return 0;
     }) : [];
 
+    const selectedModelInfo = MODELS.find(m => m.id === openaiModel);
+
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl w-full space-y-6 bg-white p-8 rounded-xl shadow-md border border-gray-100">
@@ -128,7 +141,7 @@ function Options() {
                         onClick={() => setActiveTab('api')}
                         className={`px-4 py-2 text-sm font-medium ${activeTab === 'api' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
                     >
-                        🔑 APIキー
+                        🔑 APIキー & モデル
                     </button>
                     <button
                         onClick={() => setActiveTab('prompt')}
@@ -140,92 +153,130 @@ function Options() {
 
                 {/* API Tab */}
                 {activeTab === 'api' && (
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="openai-key" className="block text-sm font-medium text-gray-700">
-                                OpenAI API キー
-                            </label>
-                            <input
-                                id="openai-key"
-                                type="password"
-                                value={openAIKey}
-                                onChange={(e) => setOpenAIKey(e.target.value)}
-                                placeholder="sk-..."
-                                className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            />
-                            <a
-                                href="https://platform.openai.com/api-keys"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-1"
-                            >
-                                APIキーを取得 <ExternalLink size={10} />
-                            </a>
-                        </div>
-
-                        <div className="pt-4 border-t border-gray-100">
-                            <label htmlFor="notion-key" className="block text-sm font-medium text-gray-700">
-                                Notion インテグレーション
-                            </label>
-                            <input
-                                id="notion-key"
-                                type="password"
-                                value={notionKey}
-                                onChange={(e) => setNotionKey(e.target.value)}
-                                placeholder="secret_..."
-                                className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            />
-                            <a
-                                href="https://www.notion.so/my-integrations"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-1"
-                            >
-                                インテグレーション作成 <ExternalLink size={10} />
-                            </a>
-                        </div>
-
-                        <div>
-                            <label htmlFor="notion-db" className="block text-sm font-medium text-gray-700">
-                                Notion データベースID
-                            </label>
-                            <input
-                                id="notion-db"
-                                type="text"
-                                value={notionDbId}
-                                onChange={(e) => setNotionDbId(e.target.value)}
-                                placeholder="Database ID"
-                                className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                                データベースのURLに含まれています： notion.so/.../<b>database_id</b>?...
-                            </p>
-                        </div>
-
-                        {/* Schema Sync Button */}
-                        <div className="mt-4 p-4 bg-blue-50 rounded-lg flex items-center justify-between">
+                    <div className="space-y-6">
+                        {/* OpenAI Section */}
+                        <div className="space-y-4">
                             <div>
-                                <h4 className="text-sm font-bold text-blue-800 flex items-center gap-2">
-                                    <Database size={16} /> Notionスキーマ同期
-                                </h4>
-                                <p className="text-xs text-blue-600 mt-1">
-                                    Notionのプロパティ構造を取得して、AIプロンプトを自動更新します。
-                                </p>
-                                {localSchema && (
-                                    <p className="text-[10px] text-blue-400 mt-1">
-                                        最終同期: {new Date(localSchema.fetchedAt).toLocaleString()}
-                                    </p>
+                                <label htmlFor="openai-key" className="block text-sm font-medium text-gray-700">
+                                    OpenAI API キー
+                                </label>
+                                <input
+                                    id="openai-key"
+                                    type="password"
+                                    value={openAIKey}
+                                    onChange={(e) => setOpenAIKey(e.target.value)}
+                                    placeholder="sk-..."
+                                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                                <a
+                                    href="https://platform.openai.com/api-keys"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-1"
+                                >
+                                    APIキーを取得 <ExternalLink size={10} />
+                                </a>
+                            </div>
+
+                            {/* Model Selector */}
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                <label htmlFor="openai-model" className="block text-sm font-bold text-gray-700 flex items-center gap-2">
+                                    <Zap size={16} className="text-yellow-500" /> 使用モデル
+                                </label>
+                                <select
+                                    id="openai-model"
+                                    value={openaiModel}
+                                    onChange={(e) => setOpenaiModel(e.target.value)}
+                                    className="mt-2 block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                >
+                                    {MODELS.map(model => (
+                                        <option key={model.id} value={model.id}>
+                                            {model.name}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {selectedModelInfo && (
+                                    <div className="mt-2 text-xs">
+                                        <p className="text-gray-600 mb-1">{selectedModelInfo.desc}</p>
+                                        <div className="flex items-center gap-4 text-gray-500 bg-white p-2 rounded border border-blue-100 inline-flex">
+                                            <span className="font-bold text-blue-600">💰 コスト目安: {selectedModelInfo.cost} / 1求人</span>
+                                            <span className="text-gray-300">|</span>
+                                            <a href="https://openai.com/api/pricing/" target="_blank" rel="noreferrer" className="flex items-center gap-1 underline hover:text-blue-700">
+                                                最新の価格表 <ExternalLink size={10} />
+                                            </a>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-                            <button
-                                onClick={syncSchema}
-                                disabled={loading || !notionKey || !notionDbId}
-                                className={`px-3 py-1.5 rounded text-xs font-bold text-white transition-colors flex items-center gap-1 ${loading || !notionKey || !notionDbId ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                                    }`}
-                            >
-                                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-                                {loading ? '同期中...' : '同期する'}
-                            </button>
+                        </div>
+
+                        {/* Notion Section */}
+                        <div className="pt-6 border-t border-gray-100 space-y-4">
+                            <div>
+                                <label htmlFor="notion-key" className="block text-sm font-medium text-gray-700">
+                                    Notion インテグレーション
+                                </label>
+                                <input
+                                    id="notion-key"
+                                    type="password"
+                                    value={notionKey}
+                                    onChange={(e) => setNotionKey(e.target.value)}
+                                    placeholder="secret_..."
+                                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                                <a
+                                    href="https://www.notion.so/my-integrations"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-1"
+                                >
+                                    インテグレーション作成 <ExternalLink size={10} />
+                                </a>
+                            </div>
+
+                            <div>
+                                <label htmlFor="notion-db" className="block text-sm font-medium text-gray-700">
+                                    Notion データベースID
+                                </label>
+                                <input
+                                    id="notion-db"
+                                    type="text"
+                                    value={notionDbId}
+                                    onChange={(e) => setNotionDbId(e.target.value)}
+                                    placeholder="Database ID"
+                                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    データベースのURLに含まれています： notion.so/.../<b>database_id</b>?...
+                                </p>
+                            </div>
+
+                            {/* Schema Sync Button */}
+                            <div className="mt-2 p-4 bg-gray-50 rounded-lg flex items-center justify-between border border-gray-200">
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                        <Database size={16} /> Notionスキーマ同期
+                                    </h4>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                        Notionのプロパティ構造を同期します。
+                                    </p>
+                                    {localSchema && (
+                                        <p className="text-[10px] text-gray-400 mt-1">
+                                            最終同期: {new Date(localSchema.fetchedAt).toLocaleString()}
+                                        </p>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={syncSchema}
+                                    disabled={loading || !notionKey || !notionDbId}
+                                    className={`px-3 py-1.5 rounded text-xs font-bold text-white transition-colors flex items-center gap-1 ${loading || !notionKey || !notionDbId ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-800'
+                                        }`}
+                                >
+                                    <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                                    {loading ? '同期中...' : '同期する'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
