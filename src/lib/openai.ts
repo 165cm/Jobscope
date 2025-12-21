@@ -49,13 +49,15 @@ Extract these fields:
 - employees: String. Employee count (e.g., 100名)
 - avg_age: String. Average age (e.g., 30.5歳)
 - age_limit: String. Age limit if any
-- skills: Array of strings. Technical skills (max 10)
-- match: String. One of: excellent, good, fair, poor
-- autonomy: Boolean (true/false)
-- feedback: Boolean (true/false)
-- teamwork: Boolean (true/false)
-- long_commute: Boolean (true/false)
-- overwork: Boolean (true/false)
+- skills: Array of strings. Technical skills mentioned in job (max 10)
+- match: String. One of: excellent, good, fair, poor (compare with user profile if provided)
+
+Boolean flags - detect from job description keywords:
+- autonomy: true if mentions 裁量権, 自由度が高い, フラットな組織, 自律的, セルフスターター
+- feedback: true if mentions 1on1, フィードバック, 評価制度, 成長支援, メンター制度
+- teamwork: true if mentions チームワーク, 協調性, コラボレーション, チーム開発
+- long_commute: true if commute > 60min OR location is far from major stations
+- overwork: true if mentions 残業多め, 繁忙期, ハードワーク, 深夜対応, OR no work-life balance mention
 
 Output EXACTLY this JSON format:
 {

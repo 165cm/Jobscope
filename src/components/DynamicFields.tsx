@@ -23,6 +23,9 @@ const FIELD_ORDER = [
     'autonomy', 'feedback', 'teamwork', 'long_commute', 'overwork',
 ];
 
+// Fields already shown in the header or elsewhere (exclude from dynamic list)
+const EXCLUDED_FIELDS = ['match', 'Name', 'Job Title', 'url', 'status', 'memo', 'Rating', 'side_job', 'action_date'];
+
 // Helper function to get value with case-insensitive key lookup
 function getValue(values: Record<string, any>, propName: string): any {
     // Direct match
@@ -38,6 +41,7 @@ export function DynamicFields({ schema, values, onChange }: DynamicFieldsProps) 
     // Filter and sort properties for display
     const displayProps = schema.properties
         .filter((p) => !['title', 'created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(p.type))
+        .filter((p) => !EXCLUDED_FIELDS.includes(p.name))
         .sort((a, b) => {
             const aIndex = FIELD_ORDER.indexOf(a.name);
             const bIndex = FIELD_ORDER.indexOf(b.name);
