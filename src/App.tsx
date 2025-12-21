@@ -233,7 +233,7 @@ function App() {
             </select>
           </div>
 
-          {/* Dynamic Fields from Schema or Fallback */}
+          {/* Fields Section */}
           {schema ? (
             <DynamicFields
               schema={schema}
@@ -241,7 +241,52 @@ function App() {
               onChange={updateField}
             />
           ) : (
-            <div className="text-xs text-gray-400 text-center py-4">Loading schema...</div>
+            /* Fallback static fields when schema not available */
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                {/* Source & Employment */}
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Source</label>
+                  <input className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5" value={result.properties.source || ''} onChange={(e) => updateField('source', e.target.value)} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Employment</label>
+                  <input className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5" value={result.properties.employment || ''} onChange={(e) => updateField('employment', e.target.value)} />
+                </div>
+                {/* Remote & Category */}
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Remote</label>
+                  <input className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5" value={result.properties.remote || ''} onChange={(e) => updateField('remote', e.target.value)} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Category</label>
+                  <input className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5" value={result.properties.category || ''} onChange={(e) => updateField('category', e.target.value)} />
+                </div>
+                {/* Salary */}
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Salary Min (万円)</label>
+                  <input type="number" className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5 text-right" value={result.properties.salary_min ?? ''} onChange={(e) => updateField('salary_min', e.target.value ? Number(e.target.value) : null)} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Salary Max (万円)</label>
+                  <input type="number" className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5 text-right" value={result.properties.salary_max ?? ''} onChange={(e) => updateField('salary_max', e.target.value ? Number(e.target.value) : null)} />
+                </div>
+                {/* Location & Station */}
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Location</label>
+                  <input className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5" value={result.properties.location || ''} onChange={(e) => updateField('location', e.target.value)} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Station</label>
+                  <input className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5" value={result.properties.station || ''} onChange={(e) => updateField('station', e.target.value)} />
+                </div>
+                {/* Skills */}
+                <div className="flex flex-col col-span-2">
+                  <label className="text-[10px] text-gray-400 font-medium uppercase">Skills</label>
+                  <input className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5" value={Array.isArray(result.properties.skills) ? result.properties.skills.join(', ') : ''} onChange={(e) => updateField('skills', e.target.value.split(',').map(s => s.trim()))} placeholder="Comma separated" />
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Status Messages */}
