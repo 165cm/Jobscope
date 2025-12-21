@@ -45,21 +45,21 @@ export const DEFAULT_LOGIC = `Boolean flags - detect from job description keywor
 
 Output EXACTLY this JSON format:`;
 
-export const DEFAULT_CONTENT_PROMPT = `Generate a structured markdown summary in the 'markdown_content' field.
-Recommended structure:
-# Job Title
-## 🏢 Company Overview
-Brief introduction.
+export const DEFAULT_CONTENT_PROMPT = `markdown_contentフィールドに、日本語で構造化された要約を出力してください。
+推奨構成:
+# 求人タイトル
+## 🏢 企業概要
+企業の特徴や事業内容の要約。
 
-## 📝 Job Description
-Summary of responsibilities.
+## 📝 仕事内容
+具体的な業務内容の要約。
 
-## 💡 Requirements
-- Must have
-- Nice to have
+## 💡 必須スキル・要件
+- 必須となる経験やスキル
 
-## 🎁 Benefits/Conditions
-Salary, location, remote work, etc.`;
+## 🎁 歓迎スキル・待遇
+- あれば望ましい経験
+- 勤務地や年収などの待遇面`;
 
 export const DEFAULT_PROMPT = `${DEFAULT_ROLE}
 
