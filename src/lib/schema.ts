@@ -133,8 +133,8 @@ export const DEFAULT_PROPERTY_INSTRUCTIONS: Record<string, string> = {
     "Job Title": "Job title (exclude company name)",
 
     // User requested clarifications:
-    "source": "求人媒体の名前 (Media Name e.g. Green, Wantedly). Do NOT put URL here.",
-    "Source": "求人媒体の名前 (Media Name e.g. Green, Wantedly). Do NOT put URL here.",
+    "source": "求人媒体の名前 (Media Name e.g. Green, Wantedly).",
+    "Source": "求人媒体の名前 (Media Name e.g. Green, Wantedly).",
     "媒体": "求人媒体の名前 (Media Name e.g. Green, Wantedly).",
 
     "web": "企業の公式HPのURL (Company Website). NOT the job post URL.",
