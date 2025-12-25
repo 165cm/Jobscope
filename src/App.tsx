@@ -295,7 +295,7 @@ function App() {
             return (
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                  <Search size={12} /> 口コミを見る
+                  <Search size={12} /> 口コミ・記事を見る
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <a
@@ -313,6 +313,15 @@ function App() {
                     className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded hover:bg-orange-200 flex items-center gap-1"
                   >
                     転職会議 <ExternalLink size={10} />
+                  </a>
+                  {/* Phase 2.2: Wantedly記事検索 */}
+                  <a
+                    href={`https://www.wantedly.com/search?q=${encodeURIComponent(searchCompanyName)}&tab=about`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded hover:bg-sky-200 flex items-center gap-1"
+                  >
+                    Wantedly <ExternalLink size={10} />
                   </a>
                 </div>
               </div>
