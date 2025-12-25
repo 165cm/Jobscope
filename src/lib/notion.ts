@@ -185,7 +185,16 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                     break;
                 case 'select':
                     const strValSelect = ensureString(value);
-                    if (strValSelect) notionProperties[prop.name] = { select: { name: strValSelect } };
+                    if (strValSelect) {
+                        // === フェーズ2 改善: Select選択肢検証 ===
+                        if (prop.options && prop.options.length > 0) {
+                            const lowerOptions = prop.options.map(o => o.toLowerCase());
+                            if (!lowerOptions.includes(strValSelect.toLowerCase())) {
+                                console.warn(`[Jobscope] 選択肢にない値: ${prop.name}="${strValSelect}" (有効: ${prop.options.join(', ')})`);
+                            }
+                        }
+                        notionProperties[prop.name] = { select: { name: strValSelect } };
+                    }
                     break;
                 case 'multi_select':
                     const vals = Array.isArray(value) ? value : (value ? [value] : []);
@@ -196,10 +205,34 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                     notionProperties[prop.name] = { checkbox: Boolean(value) };
                     break;
                 case 'url':
-                    notionProperties[prop.name] = { url: ensureString(value) || null };
+                    // === フェーズ2 改善: URL形式のバリデーション ===
+                    const urlStr = ensureString(value);
+                    if (urlStr) {
+                        try {
+                            new URL(urlStr);
+                            notionProperties[prop.name] = { url: urlStr };
+                        } catch {
+                            console.warn(`[Jobscope] 無効なURL: ${prop.name}=${urlStr}`);
+                            notionProperties[prop.name] = { url: null };
+                        }
+                    } else {
+                        notionProperties[prop.name] = { url: null };
+                    }
                     break;
                 case 'email':
-                    notionProperties[prop.name] = { email: ensureString(value) || null };
+                    // === フェーズ2 改善: Email形式のバリデーション ===
+                    const emailStr = ensureString(value);
+                    if (emailStr) {
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (emailRegex.test(emailStr)) {
+                            notionProperties[prop.name] = { email: emailStr };
+                        } else {
+                            console.warn(`[Jobscope] 無効なEmail: ${prop.name}=${emailStr}`);
+                            notionProperties[prop.name] = { email: null };
+                        }
+                    } else {
+                        notionProperties[prop.name] = { email: null };
+                    }
                     break;
                 case 'phone_number':
                     notionProperties[prop.name] = { phone_number: ensureString(value) || null };
