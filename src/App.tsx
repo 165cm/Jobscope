@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search, Building2 } from 'lucide-react';
-import { analyzeJobPost, summarizeCompanyWebsite, type AnalyzeResult, type CompanySummary } from './lib/openai';
+import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search } from 'lucide-react';
+import { analyzeJobPost, type AnalyzeResult } from './lib/openai';
 import { saveJobToNotion, updateJobInNotion } from './lib/notion';
 import { fetchNotionSchema, loadLocalSchema, saveLocalSchema, compareSchemas, hasSchemaDiff, generatePromptFromSchema, type NotionSchema, type SchemaDiff } from './lib/schema';
 import { DynamicFields } from './components/DynamicFields';
@@ -21,9 +21,7 @@ function App() {
   const [schemaDiff, setSchemaDiff] = useState<SchemaDiff | null>(null);
   const [showDiffAlert, setShowDiffAlert] = useState(false);
 
-  // Phase 1.3: 企業HP要約 state
-  const [companySummary, setCompanySummary] = useState<CompanySummary | null>(null);
-  const [summarizing, setSummarizing] = useState(false);
+
 
   // Check schema on mount
   useEffect(() => {
@@ -191,58 +189,6 @@ function App() {
     });
   };
 
-  // Phase 1.3: 企業HP要約ハンドラー
-  const handleSummarizeCompany = async () => {
-    if (!result) return;
-    const companyName = result.properties[findKey(['company', 'Company', 'Name', '会社名', '企業名', 'Business Name'])];
-    const companyWebsite = result.properties[findKey(['site', 'web', 'Web', 'website', 'Website', '会社HP'])];
-
-    if (!companyName) {
-      setError("企業名が見つかりません");
-      return;
-    }
-
-    setSummarizing(true);
-    setError(null);
-
-    try {
-      const storage = await chrome.storage.local.get(['openai_api_key', 'openai_model']);
-      const apiKey = storage.openai_api_key as string;
-      if (!apiKey) {
-        setError("OpenAI API Keyが設定されていません");
-        return;
-      }
-
-      const summary = await summarizeCompanyWebsite(
-        companyName,
-        companyWebsite || companyName, // URLがなければ企業名で推測
-        apiKey,
-        storage.openai_model as string | undefined
-      );
-      setCompanySummary(summary);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "企業情報の取得に失敗しました");
-    } finally {
-      setSummarizing(false);
-    }
-  };
-
-  // Helper to resolve property keys (handle aliases) - moved before usage
-  const findKey = (candidates: string[]) => {
-    if (!result) return candidates[0];
-    for (const key of candidates) {
-      if (result.properties[key] !== undefined) return key;
-    }
-    for (const key of candidates) {
-      const lower = key.toLowerCase();
-      for (const propKey of Object.keys(result.properties)) {
-        if (propKey.toLowerCase() === lower) return propKey;
-      }
-    }
-    return candidates[0];
-  };
-
   const openOptions = () => {
     if (chrome.runtime.openOptionsPage) {
       chrome.runtime.openOptionsPage();
@@ -340,105 +286,72 @@ function App() {
           </div>
 
           {/* === Phase 1: 口コミ・SNS検索リンク === */}
-          {result.properties[companyKey] && (
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                <Search size={12} /> 企業リサーチ
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {/* 口コミサイト */}
-                <a
-                  href={`https://www.openwork.jp/search/?q=${encodeURIComponent(result.properties[companyKey])}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 flex items-center gap-1"
-                >
-                  OpenWork <ExternalLink size={10} />
-                </a>
-                <a
-                  href={`https://jobtalk.jp/searches?q=${encodeURIComponent(result.properties[companyKey])}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded hover:bg-orange-200 flex items-center gap-1"
-                >
-                  転職会議 <ExternalLink size={10} />
-                </a>
-                <a
-                  href={`https://www.glassdoor.com/Search/results.htm?keyword=${encodeURIComponent(result.properties[companyKey])}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 flex items-center gap-1"
-                >
-                  Glassdoor <ExternalLink size={10} />
-                </a>
-                {/* SNS検索 */}
-                <a
-                  href={`https://x.com/search?q=${encodeURIComponent(result.properties[companyKey])}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 flex items-center gap-1"
-                >
-                  X (Twitter) <ExternalLink size={10} />
-                </a>
-                <a
-                  href={`https://note.com/search?q=${encodeURIComponent(result.properties[companyKey])}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded hover:bg-emerald-200 flex items-center gap-1"
-                >
-                  note <ExternalLink size={10} />
-                </a>
-                <a
-                  href={`https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(result.properties[companyKey])}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded hover:bg-sky-200 flex items-center gap-1"
-                >
-                  LinkedIn <ExternalLink size={10} />
-                </a>
-              </div>
+          {result.properties[companyKey] && (() => {
+            // ㈱ → 株式会社 に戻して検索精度を向上
+            const searchCompanyName = String(result.properties[companyKey])
+              .replace(/㈱/g, '株式会社')
+              .replace(/（株）/g, '株式会社');
 
-              {/* Phase 1.3: AI要約ボタン */}
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                {!companySummary ? (
-                  <button
-                    onClick={handleSummarizeCompany}
-                    disabled={summarizing}
-                    className="w-full px-3 py-2 bg-purple-100 text-purple-700 text-xs rounded hover:bg-purple-200 flex items-center justify-center gap-2 disabled:opacity-50"
+            return (
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Search size={12} /> 企業リサーチ
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {/* 口コミサイト */}
+                  <a
+                    href={`https://www.openwork.jp/search/?q=${encodeURIComponent(searchCompanyName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 flex items-center gap-1"
                   >
-                    {summarizing ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin" />
-                        企業情報を分析中...
-                      </>
-                    ) : (
-                      <>
-                        <Building2 size={14} />
-                        AI で企業を分析
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <div className="space-y-2 text-xs">
-                    <div className="font-medium text-gray-700">📊 企業分析結果</div>
-                    <p className="text-gray-600">{companySummary.summary}</p>
-                    {companySummary.culture.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {companySummary.culture.map((c, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-[10px]">
-                            {c}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {companySummary.businessDescription && (
-                      <p className="text-gray-500 italic">{companySummary.businessDescription}</p>
-                    )}
-                  </div>
-                )}
+                    OpenWork <ExternalLink size={10} />
+                  </a>
+                  <a
+                    href={`https://jobtalk.jp/searches?q=${encodeURIComponent(searchCompanyName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded hover:bg-orange-200 flex items-center gap-1"
+                  >
+                    転職会議 <ExternalLink size={10} />
+                  </a>
+                  <a
+                    href={`https://www.glassdoor.com/Search/results.htm?keyword=${encodeURIComponent(searchCompanyName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 flex items-center gap-1"
+                  >
+                    Glassdoor <ExternalLink size={10} />
+                  </a>
+                  {/* SNS検索 */}
+                  <a
+                    href={`https://x.com/search?q=${encodeURIComponent(searchCompanyName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 flex items-center gap-1"
+                  >
+                    X (Twitter) <ExternalLink size={10} />
+                  </a>
+                  <a
+                    href={`https://note.com/search?q=${encodeURIComponent(searchCompanyName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded hover:bg-emerald-200 flex items-center gap-1"
+                  >
+                    note <ExternalLink size={10} />
+                  </a>
+                  <a
+                    href={`https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(searchCompanyName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded hover:bg-sky-200 flex items-center gap-1"
+                  >
+                    LinkedIn <ExternalLink size={10} />
+                  </a>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Fields Section */}
           {schema ? (
