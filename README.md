@@ -1,5 +1,7 @@
 # 🔍 Jobscope - Chrome Extension
 
+> **[🌐 紹介ページ (LP) を見る](docs/lp/index.html)**
+
 求人情報をAIで解析し、Notionデータベースに保存するChrome拡張機能です。
 
 ## ✨ 主な機能
