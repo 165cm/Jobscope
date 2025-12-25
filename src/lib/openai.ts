@@ -45,21 +45,79 @@ export const DEFAULT_LOGIC = `Boolean flags - detect from job description keywor
 
 Output EXACTLY this JSON format:`;
 
-export const DEFAULT_CONTENT_PROMPT = `markdown_contentフィールドに、日本語で構造化された要約を出力してください。
+export const DEFAULT_CONTENT_PROMPT = `markdown_contentフィールドに、A4用紙1枚分相当（1000〜1500文字）の詳細な求人分析レポートを日本語で出力してください。
+
+【重要】propertiesフィールドに抽出した情報を必ずレポート内で活用してください：
+- 年収情報（salary_min/salary_max）を💰年収・待遇セクションで使用
+- リモート情報（remote）を💼働き方セクションで使用
+- スキル情報（skills）を必須スキルセクションで使用
+- ブールフラグ（autonomy/feedback/teamwork/overwork/long_commute）を働き方分析で使用
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 推奨構成:
-# 求人タイトル
+
+# [会社名] [ポジション名]
+
+## 📊 求人サマリー
+| 項目 | 内容 |
+|------|------|
+| 雇用形態 | （正社員/契約社員/業務委託） |
+| 想定年収 | XXX〜YYY万円 |
+| 勤務地 | （都道府県・最寄駅） |
+| リモート | （フルリモート/一部リモート/出社） |
+| 職種カテゴリ | （エンジニア/PM/デザイナー等） |
+
 ## 🏢 企業概要
-企業の特徴や事業内容の要約。
+- 企業の事業内容と特徴（2〜3文）
+- 従業員数・平均年齢などの組織情報（あれば）
+- 業界でのポジションや強み
 
-## 📝 仕事内容
-具体的な業務内容の要約。
+## 📝 ポジション詳細
 
-## 💡 必須スキル・要件
-- 必須となる経験やスキル
+### 仕事内容
+- 担当する業務の具体的な内容（箇条書き3〜5項目）
+- 期待される役割やミッション
 
-## 🎁 歓迎スキル・待遇
-- あれば望ましい経験
-- 勤務地や年収などの待遇面`;
+### 必須スキル・経験
+- 必須となる技術スキル（skills配列の内容を含める）
+- 必要な実務経験年数
+- 資格や学歴要件（あれば）
+
+### 歓迎スキル・経験
+- あれば望ましいスキルや経験
+- プラスαとなる資格や知識
+
+## 💼 働き方・環境分析
+以下のブールフラグに基づいて分析してください：
+
+- **リモートワーク**: remoteの値を基に勤務形態を説明
+- **裁量権・自由度**: autonomy=trueなら「裁量権が高い」、falseなら「指示系統がある」
+- **フィードバック制度**: feedback=trueなら「1on1やフィードバック制度あり」
+- **チームワーク**: teamwork=trueなら「チーム協調を重視」
+- **残業傾向**: overwork=trueなら「残業多めの可能性あり」と警告
+
+## 💰 年収・待遇
+- 想定年収: salary_min〜salary_max万円
+- 年収の市場感（高め/平均的/やや低め）を職種と経験年数から推測
+- 福利厚生・手当（記載があれば）
+
+## ⚠️ 注意点・確認ポイント
+- long_commute=trueの場合、通勤時間への注意を記載
+- overwork=trueの場合、ワークライフバランスの確認を推奨
+- 求人情報で不明確な点や面接で確認すべき事項
+
+## ✅ 総合評価
+- **マッチ度**: matchの値（excellent/good/fair/poor）とその理由
+- **この求人の魅力ポイント**: 2〜3項目
+- **応募時のアドバイス**: 面接で伝えるべきスキルや経験
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+注意事項:
+- 求人情報に記載がない項目は「記載なし」として扱う
+- 推測で情報を補う場合は「（推測）」と明記する
+- 読みやすいマークダウン形式で出力する
+- 表形式は | を使用してテーブル形式で出力する`;
 
 export const DEFAULT_PROMPT = `${DEFAULT_ROLE}
 
@@ -93,6 +151,11 @@ Use the company name (NOT abbreviated) to generate these research URLs:
 **IMPORTANT:** For all auto-generated URLs, use the FULL company name WITHOUT the "㈱" abbreviation (e.g., if company is "㈱ABC", use "株式会社ABC" or "ABC" in URLs).
 
 ${DEFAULT_LOGIC}
+
+**レポート出力指示:**
+${DEFAULT_CONTENT_PROMPT}
+
+出力フォーマット:
 {
   "properties": {
     "company": "㈱Example",
@@ -123,7 +186,7 @@ ${DEFAULT_LOGIC}
     "search_note": "https://note.com/search?q=株式会社Example",
     "search_linkedin": "https://www.linkedin.com/search/results/companies/?keywords=株式会社Example"
   },
-  "markdown_content": "# Job Summary..."
+  "markdown_content": "# ㈱Example Webエンジニア\\n\\n## 📊 求人サマリー\\n| 項目 | 内容 |\\n|------|------|\\n| 雇用形態 | 正社員 |\\n| 想定年収 | 500〜800万円 |\\n...（A4 1枚分の詳細レポート）"
 }`;
 
 
