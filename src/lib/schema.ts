@@ -161,7 +161,16 @@ export const DEFAULT_PROPERTY_INSTRUCTIONS: Record<string, string> = {
     "feedback": "Boolean flag",
     "teamwork": "Boolean flag",
     "long_commute": "Boolean flag",
-    "overwork": "Boolean flag"
+    "overwork": "Boolean flag",
+
+    // Phase 1: 企業リサーチリンク
+    "company_website": "企業の公式ホームページURL (Company Official Website URL)",
+    "openwork_url": "OpenWork検索URL (auto-generated from company name)",
+    "lighthouse_url": "Lighthouse検索URL (auto-generated from company name)",
+    "careerconnection_url": "キャリコネ検索URL (auto-generated from company name)",
+    "search_x": "X(Twitter)検索URL (auto-generated from company name)",
+    "search_note": "note検索URL (auto-generated from company name)",
+    "search_linkedin": "LinkedIn検索URL (auto-generated from company name)"
 };
 
 // Generate default prompt from schema

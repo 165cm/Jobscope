@@ -1,5 +1,5 @@
 import type { NotionProperty, NotionSchema } from '../lib/schema';
-import { Check, X } from 'lucide-react';
+import { Check, X, ExternalLink } from 'lucide-react';
 
 interface DynamicFieldsProps {
     schema: NotionSchema;
@@ -19,6 +19,9 @@ const FIELD_ORDER = [
     'Employees', 'Avg Age', 'age_limit',
     // Skills
     'skills',
+    // Enterprise Research Links (Phase 1)
+    'company_website', 'openwork_url', 'lighthouse_url', 'careerconnection_url',
+    'search_x', 'search_note', 'search_linkedin',
     // Boolean flags (shown at end)
     'autonomy', 'feedback', 'teamwork', 'long_commute', 'overwork',
 ];
@@ -179,18 +182,32 @@ function DynamicField({ property, value, onChange }: DynamicFieldProps) {
         );
     }
 
-    // URL field
+    // URL field - show clickable link with edit capability
     if (type === 'url') {
+        const hasValue = value && value.trim().length > 0;
         return (
             <div className="flex flex-col col-span-2">
                 <Label />
-                <input
-                    type="url"
-                    className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5 w-full"
-                    value={value || ''}
-                    onChange={(e) => onChange(e.target.value)}
-                    placeholder="https://..."
-                />
+                <div className="flex items-center gap-2">
+                    <input
+                        type="url"
+                        className="text-xs border-b border-gray-200 focus:border-blue-500 outline-none bg-transparent py-0.5 w-full"
+                        value={value || ''}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder="https://..."
+                    />
+                    {hasValue && (
+                        <a
+                            href={value}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-gray-100 rounded text-blue-600 hover:text-blue-800 transition-colors flex-shrink-0"
+                            title="Open in new tab"
+                        >
+                            <ExternalLink size={14} />
+                        </a>
+                    )}
+                </div>
             </div>
         );
     }
