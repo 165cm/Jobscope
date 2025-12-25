@@ -338,7 +338,7 @@ function App() {
                       OpenMoney <ExternalLink size={10} />
                     </a>
                     <a
-                      href={`https://opensalary.jp/search?q=${encodeURIComponent(searchCompanyName)}`}
+                      href={`https://www.google.com/search?q=site:opensalary.jp+${encodeURIComponent(searchCompanyName)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded hover:bg-purple-200 flex items-center gap-1"
@@ -346,7 +346,7 @@ function App() {
                       OpenSalary <ExternalLink size={10} />
                     </a>
                     <a
-                      href={`https://www.openwork.jp/company_list?src_str=${encodeURIComponent(searchCompanyName)}&sort=1&ct=com`}
+                      href={`https://www.openwork.jp/company_list?src_str=${encodeURIComponent(searchCompanyName)}&sort=1&ct=comlist`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-2 py-1 bg-green-50 text-green-600 text-xs rounded hover:bg-green-100 flex items-center gap-1"
