@@ -305,6 +305,20 @@ export async function saveJobToNotion(
             properties[wantedlyProp.name] = { url: `https://www.wantedly.com/search?query=${encodedName}` };
             console.log('[Jobscope] Wantedly URL設定:', wantedlyProp.name);
         }
+
+        // OpenMoney (年収DB)
+        const openmoneyProp = findUrlProp(['OpenMoney', 'openmoney', 'Openmoney']);
+        if (openmoneyProp) {
+            properties[openmoneyProp.name] = { url: `https://openmoney.jp/search?query=${encodedName}` };
+            console.log('[Jobscope] OpenMoney URL設定:', openmoneyProp.name);
+        }
+
+        // OpenWork年収
+        const openworkSalaryProp = findUrlProp(['OpenWork年収', 'openwork年収', 'OpenWork Salary']);
+        if (openworkSalaryProp) {
+            properties[openworkSalaryProp.name] = { url: `https://www.openwork.jp/company_list?src_str=${encodedName}&sort=1&ct=comlist` };
+            console.log('[Jobscope] OpenWork年収 URL設定:', openworkSalaryProp.name);
+        }
     }
 
     // Include children (content)
