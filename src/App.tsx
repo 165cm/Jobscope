@@ -324,6 +324,37 @@ function App() {
                     Wantedly <ExternalLink size={10} />
                   </a>
                 </div>
+
+                {/* Phase 3: 年収DB検索リンク */}
+                <div className="pt-2 border-t border-gray-200">
+                  <span className="text-[10px] text-gray-400 mb-1 block">💰 年収を調べる</span>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`https://www.openmoney.jp/search?query=${encodeURIComponent(searchCompanyName)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded hover:bg-yellow-200 flex items-center gap-1"
+                    >
+                      OpenMoney <ExternalLink size={10} />
+                    </a>
+                    <a
+                      href={`https://opensalary.jp/search?q=${encodeURIComponent(searchCompanyName)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded hover:bg-purple-200 flex items-center gap-1"
+                    >
+                      OpenSalary <ExternalLink size={10} />
+                    </a>
+                    <a
+                      href={`https://www.openwork.jp/company_list?src_str=${encodeURIComponent(searchCompanyName)}&sort=1&ct=com`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2 py-1 bg-green-50 text-green-600 text-xs rounded hover:bg-green-100 flex items-center gap-1"
+                    >
+                      OpenWork年収 <ExternalLink size={10} />
+                    </a>
+                  </div>
+                </div>
               </div>
             );
           })()}
