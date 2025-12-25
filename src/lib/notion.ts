@@ -278,22 +278,32 @@ export async function saveJobToNotion(
             .replace(/（株）/g, '株式会社');
         const encodedName = encodeURIComponent(searchCompanyName);
 
-        // OpenWork (スキーマに 'OpenWork' プロパティがあれば設定)
-        const openworkProp = schema.properties.find(p => p.name === 'OpenWork' && p.type === 'url');
-        if (openworkProp && !properties['OpenWork']) {
-            properties['OpenWork'] = { url: `https://www.openwork.jp/company_list?src_str=${encodedName}&sort=1&ct=com` };
+        // ヘルパー: スキーマからURL型プロパティを名前で検索（大文字小文字無視）
+        const findUrlProp = (names: string[]) => {
+            return schema.properties.find(p =>
+                p.type === 'url' && names.some(n => p.name.toLowerCase() === n.toLowerCase())
+            );
+        };
+
+        // OpenWork
+        const openworkProp = findUrlProp(['OpenWork', 'openwork', 'Openwork']);
+        if (openworkProp) {
+            properties[openworkProp.name] = { url: `https://www.openwork.jp/company_list?src_str=${encodedName}&sort=1&ct=com` };
+            console.log('[Jobscope] OpenWork URL設定:', openworkProp.name);
         }
 
-        // 転職会議 (スキーマに '転職会議' プロパティがあれば設定)
-        const jobtalkProp = schema.properties.find(p => p.name === '転職会議' && p.type === 'url');
-        if (jobtalkProp && !properties['転職会議']) {
-            properties['転職会議'] = { url: `https://jobtalk.jp/companies/search?keyword=${encodedName}&keyword_search_form=1&include_no_answers=1&include_bankrupted=1` };
+        // 転職会議
+        const jobtalkProp = findUrlProp(['転職会議', 'jobtalk', 'Jobtalk']);
+        if (jobtalkProp) {
+            properties[jobtalkProp.name] = { url: `https://jobtalk.jp/companies/search?keyword=${encodedName}&keyword_search_form=1&include_no_answers=1&include_bankrupted=1` };
+            console.log('[Jobscope] 転職会議 URL設定:', jobtalkProp.name);
         }
 
-        // Wantedly (スキーマに 'Wantedly' または 'wantedly' プロパティがあれば設定)
-        const wantedlyProp = schema.properties.find(p => (p.name === 'Wantedly' || p.name === 'wantedly') && p.type === 'url');
-        if (wantedlyProp && !properties[wantedlyProp.name]) {
+        // Wantedly
+        const wantedlyProp = findUrlProp(['Wantedly', 'wantedly']);
+        if (wantedlyProp) {
             properties[wantedlyProp.name] = { url: `https://www.wantedly.com/search?query=${encodedName}` };
+            console.log('[Jobscope] Wantedly URL設定:', wantedlyProp.name);
         }
     }
 
