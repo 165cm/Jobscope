@@ -159,7 +159,29 @@ ${userProfile || 'No specific user profile provided.'}
     }
 
     const result = JSON.parse(content) as AnalyzeResult;
-    return sanitizeAnalyzeResult(result);
+    const sanitizedResult = sanitizeAnalyzeResult(result);
+
+    // === フェーズ3 改善: 抽出ログの保存 ===
+    try {
+        const logEntry = {
+            timestamp: Date.now(),
+            url: url,
+            model: modelToUse,
+            inputLength: text.length,
+            fieldsExtracted: Object.keys(sanitizedResult.properties).filter(k => sanitizedResult.properties[k] != null).length,
+            success: true
+        };
+        // 直近10件のログを保持
+        const storage = await chrome.storage.local.get(['extraction_logs']);
+        const storedLogs = storage.extraction_logs;
+        const logs: any[] = Array.isArray(storedLogs) ? storedLogs : [];
+        logs.unshift(logEntry);
+        await chrome.storage.local.set({ extraction_logs: logs.slice(0, 10) });
+    } catch (logError) {
+        console.warn('[Jobscope] ログ保存失敗:', logError);
+    }
+
+    return sanitizedResult;
 }
 
 // Ensure all properties are flat strings/numbers/booleans
@@ -255,4 +277,34 @@ function flattenValue(value: any): any {
     if (Object.keys(value).length === 0) return null;
 
     return JSON.stringify(value);
+}
+
+// === フェーズ3 改善: AI信頼度スコア計算 ===
+export function calculateConfidenceScore(result: AnalyzeResult): number {
+    let score = 100;
+    const props = result.properties;
+
+    // 必須フィールドの抽出成功率をチェック
+    const requiredFields = ['company', 'title', 'employment'];
+    for (const field of requiredFields) {
+        if (!props[field]) {
+            score -= 20; // 必須フィールド未抽出で-20点
+        }
+    }
+
+    // 重要フィールドの抽出成功率をチェック
+    const importantFields = ['salary_min', 'salary_max', 'location', 'remote'];
+    for (const field of importantFields) {
+        if (!props[field]) {
+            score -= 5; // 重要フィールド未抽出で-5点
+        }
+    }
+
+    // 空フィールドの数に応じて減点（最大-20点）
+    const allFields = Object.keys(props);
+    const emptyCount = allFields.filter(k => props[k] == null || props[k] === '').length;
+    score -= Math.min(emptyCount * 2, 20);
+
+    // スコアを0-100の範囲に収める
+    return Math.max(0, Math.min(100, score));
 }

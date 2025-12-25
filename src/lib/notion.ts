@@ -334,3 +334,58 @@ export async function updateJobInNotion(
 
     return { url: result.url, id: result.id };
 }
+
+// === フェーズ3 改善: 重複求人の検出 ===
+export interface DuplicateCheckResult {
+    isDuplicate: boolean;
+    existingPageId: string | null;
+    existingPageUrl: string | null;
+}
+
+export async function checkDuplicateJob(
+    apiKey: string,
+    databaseId: string,
+    jobUrl: string
+): Promise<DuplicateCheckResult> {
+    try {
+        const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Notion-Version': '2022-06-28',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filter: {
+                    or: [
+                        { property: 'URL', url: { equals: jobUrl } },
+                        { property: 'Job URL', url: { equals: jobUrl } },
+                        { property: 'Link', url: { equals: jobUrl } },
+                    ]
+                },
+                page_size: 1
+            })
+        });
+
+        if (!response.ok) {
+            console.warn('[Jobscope] 重複チェック失敗:', await response.text());
+            return { isDuplicate: false, existingPageId: null, existingPageUrl: null };
+        }
+
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+            const existingPage = data.results[0];
+            console.log('[Jobscope] 重複求人を検出:', existingPage.url);
+            return {
+                isDuplicate: true,
+                existingPageId: existingPage.id,
+                existingPageUrl: existingPage.url
+            };
+        }
+
+        return { isDuplicate: false, existingPageId: null, existingPageUrl: null };
+    } catch (error) {
+        console.warn('[Jobscope] 重複チェックエラー:', error);
+        return { isDuplicate: false, existingPageId: null, existingPageUrl: null };
+    }
+}
