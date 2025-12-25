@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X } from 'lucide-react';
+import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search } from 'lucide-react';
 import { analyzeJobPost, type AnalyzeResult } from './lib/openai';
 import { saveJobToNotion, updateJobInNotion } from './lib/notion';
 import { fetchNotionSchema, loadLocalSchema, saveLocalSchema, compareSchemas, hasSchemaDiff, generatePromptFromSchema, type NotionSchema, type SchemaDiff } from './lib/schema';
@@ -282,6 +282,67 @@ function App() {
               <option value="poor">× 不足あり</option>
             </select>
           </div>
+
+          {/* === Phase 1: 口コミ・SNS検索リンク === */}
+          {result.properties[companyKey] && (
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                <Search size={12} /> 企業リサーチ
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {/* 口コミサイト */}
+                <a
+                  href={`https://www.openwork.jp/search/?q=${encodeURIComponent(result.properties[companyKey])}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 flex items-center gap-1"
+                >
+                  OpenWork <ExternalLink size={10} />
+                </a>
+                <a
+                  href={`https://jobtalk.jp/searches?q=${encodeURIComponent(result.properties[companyKey])}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded hover:bg-orange-200 flex items-center gap-1"
+                >
+                  転職会議 <ExternalLink size={10} />
+                </a>
+                <a
+                  href={`https://www.glassdoor.com/Search/results.htm?keyword=${encodeURIComponent(result.properties[companyKey])}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 flex items-center gap-1"
+                >
+                  Glassdoor <ExternalLink size={10} />
+                </a>
+                {/* SNS検索 */}
+                <a
+                  href={`https://x.com/search?q=${encodeURIComponent(result.properties[companyKey])}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 flex items-center gap-1"
+                >
+                  X (Twitter) <ExternalLink size={10} />
+                </a>
+                <a
+                  href={`https://note.com/search?q=${encodeURIComponent(result.properties[companyKey])}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded hover:bg-emerald-200 flex items-center gap-1"
+                >
+                  note <ExternalLink size={10} />
+                </a>
+                <a
+                  href={`https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(result.properties[companyKey])}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded hover:bg-sky-200 flex items-center gap-1"
+                >
+                  LinkedIn <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+          )}
 
           {/* Fields Section */}
           {schema ? (
