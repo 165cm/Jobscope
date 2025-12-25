@@ -178,7 +178,29 @@ ${userProfile || 'No specific user profile provided.'}
     }
 
     const result = JSON.parse(content) as AnalyzeResult;
-    return sanitizeAnalyzeResult(result);
+    const sanitizedResult = sanitizeAnalyzeResult(result);
+
+    // === フェーズ3 改善: 抽出ログの保存 ===
+    try {
+        const logEntry = {
+            timestamp: Date.now(),
+            url: url,
+            model: modelToUse,
+            inputLength: text.length,
+            fieldsExtracted: Object.keys(sanitizedResult.properties).filter(k => sanitizedResult.properties[k] != null).length,
+            success: true
+        };
+        // 直近10件のログを保持
+        const storage = await chrome.storage.local.get(['extraction_logs']);
+        const storedLogs = storage.extraction_logs;
+        const logs: any[] = Array.isArray(storedLogs) ? storedLogs : [];
+        logs.unshift(logEntry);
+        await chrome.storage.local.set({ extraction_logs: logs.slice(0, 10) });
+    } catch (logError) {
+        console.warn('[Jobscope] ログ保存失敗:', logError);
+    }
+
+    return sanitizedResult;
 }
 
 // Ensure all properties are flat strings/numbers/booleans
@@ -188,6 +210,34 @@ function sanitizeAnalyzeResult(result: AnalyzeResult): AnalyzeResult {
 
     for (const [key, value] of Object.entries(props)) {
         sanitizedProps[key] = flattenValue(value);
+    }
+
+    // === フェーズ1 改善: 給与範囲の整合性チェック ===
+    if (sanitizedProps.salary_min != null && sanitizedProps.salary_max != null) {
+        const min = Number(sanitizedProps.salary_min);
+        const max = Number(sanitizedProps.salary_max);
+        if (!isNaN(min) && !isNaN(max) && min > max) {
+            // 値を入れ替え
+            [sanitizedProps.salary_min, sanitizedProps.salary_max] = [max, min];
+            console.log('[Jobscope] 給与範囲を修正: min/max を入れ替えました');
+        }
+    }
+
+    // === フェーズ1 改善: スキル配列の上限強制 (最大10個) ===
+    if (Array.isArray(sanitizedProps.skills) && sanitizedProps.skills.length > 10) {
+        sanitizedProps.skills = sanitizedProps.skills.slice(0, 10);
+        console.log('[Jobscope] スキル配列を10個に制限しました');
+    }
+
+    // === フェーズ1 改善: 企業名の標準化 ===
+    if (sanitizedProps.company && typeof sanitizedProps.company === 'string') {
+        let company = sanitizedProps.company.trim();
+        // 株式会社 → ㈱ に統一
+        company = company
+            .replace(/株式会社/g, '㈱')
+            .replace(/\(株\)/g, '㈱')
+            .replace(/（株）/g, '㈱');
+        sanitizedProps.company = company;
     }
 
     return {
@@ -246,4 +296,104 @@ function flattenValue(value: any): any {
     if (Object.keys(value).length === 0) return null;
 
     return JSON.stringify(value);
+}
+
+// === フェーズ3 改善: AI信頼度スコア計算 ===
+export function calculateConfidenceScore(result: AnalyzeResult): number {
+    let score = 100;
+    const props = result.properties;
+
+    // 必須フィールドの抽出成功率をチェック
+    const requiredFields = ['company', 'title', 'employment'];
+    for (const field of requiredFields) {
+        if (!props[field]) {
+            score -= 20; // 必須フィールド未抽出で-20点
+        }
+    }
+
+    // 重要フィールドの抽出成功率をチェック
+    const importantFields = ['salary_min', 'salary_max', 'location', 'remote'];
+    for (const field of importantFields) {
+        if (!props[field]) {
+            score -= 5; // 重要フィールド未抽出で-5点
+        }
+    }
+
+    // 空フィールドの数に応じて減点（最大-20点）
+    const allFields = Object.keys(props);
+    const emptyCount = allFields.filter(k => props[k] == null || props[k] === '').length;
+    score -= Math.min(emptyCount * 2, 20);
+
+    // スコアを0-100の範囲に収める
+    return Math.max(0, Math.min(100, score));
+}
+
+// === Phase 1.3: 企業HP要約 ===
+export interface CompanySummary {
+    summary: string;
+    culture: string[];
+    businessDescription: string;
+    fetchedAt: number;
+}
+
+export async function summarizeCompanyWebsite(
+    companyName: string,
+    websiteUrl: string,
+    apiKey: string,
+    model?: string
+): Promise<CompanySummary> {
+    const modelToUse = model || MODEL_NAME;
+
+    const prompt = `以下の企業について、Webサイトから得られる情報を基に要約してください。
+
+企業名: ${companyName}
+企業HP: ${websiteUrl}
+
+以下のJSON形式で出力してください:
+{
+  "summary": "企業の概要（2-3文）",
+  "culture": ["カルチャーの特徴1", "特徴2", "特徴3"],
+  "businessDescription": "主な事業内容（1-2文）"
+}
+
+注意:
+- 公開情報に基づいて推測してください
+- 日本語で出力してください
+- 事実に基づいた客観的な情報を提供してください`;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: modelToUse,
+            messages: [
+                { role: "system", content: "You are a helpful assistant that summarizes company information. Output JSON only." },
+                { role: "user", content: prompt },
+            ],
+            response_format: { type: "json_object" },
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Failed to summarize company");
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+
+    if (!content) {
+        throw new Error("No content from OpenAI");
+    }
+
+    const result = JSON.parse(content);
+    return {
+        summary: result.summary || "情報を取得できませんでした",
+        culture: result.culture || [],
+        businessDescription: result.businessDescription || "",
+        fetchedAt: Date.now()
+    };
 }

@@ -11,5 +11,18 @@ export default defineConfig({
     crx({ manifest }),
     tailwindcss(),
   ],
+  server: {
+    port: 5173,
+    strictPort: true,
+    hmr: {
+      port: 5173,
+    },
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+      allowedHeaders: "*",
+      credentials: true
+    }
+  },
 })
 

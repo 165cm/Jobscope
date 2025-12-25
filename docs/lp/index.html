@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobPocket - 1クリックで求人情報をNotionに整理</title>
+    <meta name="description" content="AIが求人情報を自動解析。Green、Wantedly、doda、BizReachの求人を1クリックでNotionデータベースに保存。転職活動を効率化。">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans JP', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card-hover { transition: transform 0.3s, box-shadow 0.3s; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm z-50 border-b border-gray-100">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">JP</span>
+                </div>
+                <span class="font-bold text-xl">JobPocket</span>
+            </div>
+            <a href="#pricing" class="bg-gray-900 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition">
+                今すぐ始める
+            </a>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="pt-32 pb-20 px-4">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="inline-block bg-purple-100 text-purple-700 px-4 py-1 rounded-full text-sm font-medium mb-6">
+                転職活動を10倍効率化
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black text-gray-900 leading-tight mb-6">
+                求人情報を<span class="gradient-text">1クリック</span>で<br>
+                Notionに整理
+            </h1>
+            <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+                AIが求人ページを自動解析。企業名・年収・スキル・勤務地を<br>
+                瞬時に抽出してNotionデータベースに保存します。
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+                <a href="#pricing" class="gradient-bg text-white px-8 py-4 rounded-full text-lg font-bold hover:opacity-90 transition shadow-lg">
+                    ¥750で始める（買い切り）
+                </a>
+                <a href="#demo" class="bg-white text-gray-700 px-8 py-4 rounded-full text-lg font-medium border-2 border-gray-200 hover:border-gray-300 transition">
+                    デモを見る
+                </a>
+            </div>
+            <!-- Social Proof -->
+            <div class="flex items-center justify-center gap-8 text-gray-500 text-sm">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    <span>Green対応</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    <span>Wantedly対応</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    <span>doda対応</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pain Point Section -->
+    <section class="py-20 px-4 bg-white">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4">こんな悩みありませんか？</h2>
+            <p class="text-gray-600 text-center mb-12">転職活動で多くの人が感じる課題</p>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-red-50 rounded-2xl p-6 border border-red-100">
+                    <div class="text-3xl mb-4">😫</div>
+                    <h3 class="font-bold text-lg mb-2">求人情報がバラバラ</h3>
+                    <p class="text-gray-600 text-sm">Green、Wantedly、doda...複数サイトの情報が散らばって比較できない</p>
+                </div>
+                <div class="bg-red-50 rounded-2xl p-6 border border-red-100">
+                    <div class="text-3xl mb-4">⏰</div>
+                    <h3 class="font-bold text-lg mb-2">手入力が面倒</h3>
+                    <p class="text-gray-600 text-sm">1件ずつ手作業で情報を整理するのに13分以上かかる</p>
+                </div>
+                <div class="bg-red-50 rounded-2xl p-6 border border-red-100">
+                    <div class="text-3xl mb-4">🤯</div>
+                    <h3 class="font-bold text-lg mb-2">どこに応募したか忘れる</h3>
+                    <p class="text-gray-600 text-sm">50社以上応募すると、進捗管理が追いつかない</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section id="demo" class="py-20 px-4">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4">JobPocketが解決します</h2>
+            <p class="text-gray-600 text-center mb-12">AIが自動で求人情報を整理</p>
+
+            <!-- Demo Image Placeholder -->
+            <div class="bg-gradient-to-br from-purple-100 to-blue-100 rounded-3xl p-8 mb-12">
+                <div class="bg-white rounded-2xl shadow-xl p-4 max-w-3xl mx-auto">
+                    <div class="flex items-center gap-2 mb-4 pb-4 border-b">
+                        <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                        <span class="text-xs text-gray-400 ml-2">green-japan.com/job/12345</span>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="flex-1 bg-gray-100 rounded-lg p-4 text-sm text-gray-500">
+                            [求人ページ]<br>
+                            株式会社Example<br>
+                            Webエンジニア募集...<br>
+                            年収500〜800万円...
+                        </div>
+                        <div class="flex items-center">
+                            <div class="gradient-bg text-white px-3 py-2 rounded-lg text-xs font-bold pulse">
+                                AI解析中...
+                            </div>
+                        </div>
+                        <div class="flex-1 bg-gray-900 rounded-lg p-4 text-sm text-green-400 font-mono">
+                            ✓ 企業名: ㈱Example<br>
+                            ✓ 年収: 500〜800万<br>
+                            ✓ スキル: React, TS<br>
+                            ✓ リモート: フルリモート<br>
+                            → Notionに保存完了
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="flex gap-4 items-start">
+                    <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span class="text-2xl">🤖</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">AIが自動で情報抽出</h3>
+                        <p class="text-gray-600">GPT-4o miniが求人ページを解析。企業名、年収、スキル、勤務形態を瞬時に構造化データに変換。</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span class="text-2xl">📝</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Notionに直接保存</h3>
+                        <p class="text-gray-600">ワンクリックでNotionデータベースに保存。カンバン、カレンダー、テーブルビューで管理。</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span class="text-2xl">✏️</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">その場で編集可能</h3>
+                        <p class="text-gray-600">サイドパネルで解析結果をリアルタイム確認・編集。保存前に微調整できます。</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span class="text-2xl">🎯</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">日本の求人サイト対応</h3>
+                        <p class="text-gray-600">Green、Wantedly、doda、BizReach、LinkedIn、Findy など主要サイトに対応。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ROI Section -->
+    <section class="py-20 px-4 bg-gray-900 text-white">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4">圧倒的なコストパフォーマンス</h2>
+            <p class="text-gray-400 text-center mb-12">1件あたり約1円で、13分の手作業を自動化</p>
+
+            <div class="grid md:grid-cols-3 gap-8 mb-12">
+                <div class="bg-gray-800 rounded-2xl p-8 text-center card-hover">
+                    <div class="text-5xl font-black gradient-text mb-2">1円</div>
+                    <div class="text-gray-400">1件あたりのAI解析コスト</div>
+                </div>
+                <div class="bg-gray-800 rounded-2xl p-8 text-center card-hover">
+                    <div class="text-5xl font-black gradient-text mb-2">13分</div>
+                    <div class="text-gray-400">1件あたりの節約時間</div>
+                </div>
+                <div class="bg-gray-800 rounded-2xl p-8 text-center card-hover">
+                    <div class="text-5xl font-black gradient-text mb-2">21時間</div>
+                    <div class="text-gray-400">100件応募時の節約時間</div>
+                </div>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="bg-gray-800 rounded-2xl p-8 max-w-2xl mx-auto">
+                <h3 class="font-bold text-xl mb-6 text-center">手作業 vs JobPocket</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center py-3 border-b border-gray-700">
+                        <span class="text-gray-400">100件の求人整理</span>
+                        <div class="flex gap-8">
+                            <span class="text-red-400 line-through">21時間40分</span>
+                            <span class="text-green-400 font-bold">10分</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center py-3 border-b border-gray-700">
+                        <span class="text-gray-400">コスト（時給1,000円換算）</span>
+                        <div class="flex gap-8">
+                            <span class="text-red-400 line-through">21,600円</span>
+                            <span class="text-green-400 font-bold">100円</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center py-3">
+                        <span class="text-gray-400">ROI</span>
+                        <span class="text-3xl font-black gradient-text">21,500%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-20 px-4 bg-white">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4">3ステップで完了</h2>
+            <p class="text-gray-600 text-center mb-12">セットアップは5分で終わります</p>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 gradient-bg rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold">1</div>
+                    <h3 class="font-bold text-lg mb-2">拡張機能をインストール</h3>
+                    <p class="text-gray-600 text-sm">Chromeウェブストアからワンクリックでインストール。</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 gradient-bg rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold">2</div>
+                    <h3 class="font-bold text-lg mb-2">NotionDBを接続</h3>
+                    <p class="text-gray-600 text-sm">付属のテンプレートを複製し、APIキーを設定。</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 gradient-bg rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold">3</div>
+                    <h3 class="font-bold text-lg mb-2">求人ページで解析</h3>
+                    <p class="text-gray-600 text-sm">求人サイトを開いてクリック。AIが自動で解析＆保存。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- What's Included -->
+    <section class="py-20 px-4">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4">パッケージ内容</h2>
+            <p class="text-gray-600 text-center mb-12">必要なものが全て揃っています</p>
+
+            <div class="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                <div class="flex items-center gap-4 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span class="text-xl">🧩</span>
+                    </div>
+                    <div>
+                        <div class="font-bold">Chrome拡張機能</div>
+                        <div class="text-sm text-gray-500">AI解析エンジン搭載</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span class="text-xl">📊</span>
+                    </div>
+                    <div>
+                        <div class="font-bold">Notion DBテンプレート</div>
+                        <div class="text-sm text-gray-500">最適化済み、すぐに使える</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span class="text-xl">📖</span>
+                    </div>
+                    <div>
+                        <div class="font-bold">セットアップガイド</div>
+                        <div class="text-sm text-gray-500">日本語で丁寧に解説</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span class="text-xl">🎥</span>
+                    </div>
+                    <div>
+                        <div class="font-bold">動画チュートリアル</div>
+                        <div class="text-sm text-gray-500">5分で使い方がわかる</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span class="text-xl">💬</span>
+                    </div>
+                    <div>
+                        <div class="font-bold">30日間メールサポート</div>
+                        <div class="text-sm text-gray-500">困ったらすぐ相談</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span class="text-xl">🔄</span>
+                    </div>
+                    <div>
+                        <div class="font-bold">1年間アップデート保証</div>
+                        <div class="text-sm text-gray-500">新機能も無料で利用</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="py-20 px-4 bg-white">
+        <div class="max-w-3xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4">シンプルな料金体系</h2>
+            <p class="text-gray-600 text-center mb-12">買い切りで永久に使えます</p>
+
+            <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-3xl p-8 border-2 border-purple-200 relative">
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-4 py-1 rounded-full text-sm font-bold">
+                    期間限定価格
+                </div>
+                <div class="text-center mb-8">
+                    <div class="text-gray-500 line-through text-lg">¥1,500</div>
+                    <div class="text-6xl font-black gradient-text mb-2">¥750</div>
+                    <div class="text-gray-600">買い切り（$5 USD）</div>
+                </div>
+
+                <ul class="space-y-3 mb-8">
+                    <li class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <span>Chrome拡張機能（永久ライセンス）</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <span>最適化されたNotion DBテンプレート</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <span>日本語セットアップガイド</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <span>30日間メールサポート</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <span>1年間のアップデート保証</span>
+                    </li>
+                </ul>
+
+                <a href="#" class="block w-full gradient-bg text-white text-center py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg">
+                    今すぐ購入する
+                </a>
+
+                <p class="text-center text-gray-500 text-sm mt-4">
+                    ※ AI解析には別途OpenAI APIキー（約1円/件）が必要です
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="py-20 px-4">
+        <div class="max-w-3xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-12">よくある質問</h2>
+
+            <div class="space-y-4">
+                <details class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 group">
+                    <summary class="font-bold cursor-pointer flex justify-between items-center">
+                        OpenAI APIキーとは何ですか？
+                        <span class="text-gray-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <p class="mt-4 text-gray-600">
+                        OpenAIが提供するAIサービスを利用するためのキーです。OpenAIのウェブサイトで無料で取得でき、使った分だけ課金されます（約1円/件）。セットアップガイドで詳しく解説しています。
+                    </p>
+                </details>
+
+                <details class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 group">
+                    <summary class="font-bold cursor-pointer flex justify-between items-center">
+                        Notionは無料プランでも使えますか？
+                        <span class="text-gray-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <p class="mt-4 text-gray-600">
+                        はい、Notionの無料プランで問題なく動作します。API連携も無料プランで利用可能です。
+                    </p>
+                </details>
+
+                <details class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 group">
+                    <summary class="font-bold cursor-pointer flex justify-between items-center">
+                        どの求人サイトに対応していますか？
+                        <span class="text-gray-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <p class="mt-4 text-gray-600">
+                        Green、Wantedly、doda、BizReach、LinkedIn、Findy、YOUTRUSTなど主要な求人サイトに対応しています。基本的にどんなWebページでも解析可能です。
+                    </p>
+                </details>
+
+                <details class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 group">
+                    <summary class="font-bold cursor-pointer flex justify-between items-center">
+                        返金はできますか？
+                        <span class="text-gray-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <p class="mt-4 text-gray-600">
+                        購入後7日以内であれば、理由を問わず全額返金いたします。お気軽にお試しください。
+                    </p>
+                </details>
+
+                <details class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 group">
+                    <summary class="font-bold cursor-pointer flex justify-between items-center">
+                        Firefoxやその他のブラウザでも使えますか？
+                        <span class="text-gray-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <p class="mt-4 text-gray-600">
+                        現在はChrome専用です。将来的にFirefox、Edge対応も検討しています。
+                    </p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="py-20 px-4 gradient-bg">
+        <div class="max-w-3xl mx-auto text-center text-white">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4">転職活動を今日から効率化しよう</h2>
+            <p class="text-xl opacity-90 mb-8">21時間の手作業を100円で自動化</p>
+            <a href="#pricing" class="inline-block bg-white text-purple-700 px-8 py-4 rounded-full text-lg font-bold hover:bg-gray-100 transition shadow-lg">
+                ¥750で始める
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-4 bg-gray-900 text-gray-400">
+        <div class="max-w-5xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">JP</span>
+                    </div>
+                    <span class="font-bold text-white">JobPocket</span>
+                </div>
+                <div class="flex gap-6 text-sm">
+                    <a href="#" class="hover:text-white transition">利用規約</a>
+                    <a href="#" class="hover:text-white transition">プライバシーポリシー</a>
+                    <a href="#" class="hover:text-white transition">特定商取引法</a>
+                    <a href="#" class="hover:text-white transition">お問い合わせ</a>
+                </div>
+            </div>
+            <div class="text-center mt-8 text-sm">
+                © 2024 JobPocket. All rights reserved.
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

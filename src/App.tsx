@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X } from 'lucide-react';
+import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search } from 'lucide-react';
 import { analyzeJobPost, type AnalyzeResult } from './lib/openai';
 import { saveJobToNotion, updateJobInNotion } from './lib/notion';
 import { fetchNotionSchema, loadLocalSchema, saveLocalSchema, compareSchemas, hasSchemaDiff, generatePromptFromSchema, type NotionSchema, type SchemaDiff } from './lib/schema';
@@ -20,6 +20,8 @@ function App() {
   const [schema, setSchema] = useState<NotionSchema | null>(null);
   const [schemaDiff, setSchemaDiff] = useState<SchemaDiff | null>(null);
   const [showDiffAlert, setShowDiffAlert] = useState(false);
+
+
 
   // Check schema on mount
   useEffect(() => {
@@ -282,6 +284,72 @@ function App() {
               <option value="poor">× 不足あり</option>
             </select>
           </div>
+
+          {/* === Phase 1: 口コミサイトリンク === */}
+          {result.properties[companyKey] && (() => {
+            // ㈱ → 株式会社 に戻して検索精度を向上
+            const searchCompanyName = String(result.properties[companyKey])
+              .replace(/㈱/g, '株式会社')
+              .replace(/（株）/g, '株式会社');
+
+            return (
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Search size={12} /> 口コミ・記事を見る
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={`https://www.openwork.jp/company_list?src_str=${encodeURIComponent(searchCompanyName)}&sort=1&ct=com`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 flex items-center gap-1"
+                  >
+                    OpenWork <ExternalLink size={10} />
+                  </a>
+                  <a
+                    href={`https://jobtalk.jp/companies/search?keyword=${encodeURIComponent(searchCompanyName)}&keyword_search_form=1&include_no_answers=1&include_bankrupted=1`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded hover:bg-orange-200 flex items-center gap-1"
+                  >
+                    転職会議 <ExternalLink size={10} />
+                  </a>
+                  {/* Phase 2.2: Wantedly記事検索 */}
+                  <a
+                    href={`https://www.wantedly.com/search?query=${encodeURIComponent(searchCompanyName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded hover:bg-sky-200 flex items-center gap-1"
+                  >
+                    Wantedly <ExternalLink size={10} />
+                  </a>
+                </div>
+
+                {/* Phase 3: 年収DB検索リンク */}
+                <div className="pt-2 border-t border-gray-200">
+                  <span className="text-[10px] text-gray-400 mb-1 block">💰 年収を調べる</span>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`https://openmoney.jp/search?query=${encodeURIComponent(searchCompanyName)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded hover:bg-yellow-200 flex items-center gap-1"
+                    >
+                      OpenMoney <ExternalLink size={10} />
+                    </a>
+                    <a
+                      href={`https://www.openwork.jp/company_list?src_str=${encodeURIComponent(searchCompanyName)}&sort=1&ct=comlist`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2 py-1 bg-green-50 text-green-600 text-xs rounded hover:bg-green-100 flex items-center gap-1"
+                    >
+                      OpenWork年収 <ExternalLink size={10} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Fields Section */}
           {schema ? (

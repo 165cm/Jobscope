@@ -161,11 +161,40 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                 case 'number':
                     let num = value;
                     if (typeof num === 'string') num = parseFloat(num.replace(/[^0-9.-]/g, ''));
+
+                    // === フェーズ1 改善: 数値範囲検証 ===
+                    if (!isNaN(num) && num !== '') {
+                        const lowerName = prop.name.toLowerCase();
+                        // 給与の範囲チェック (200-10000万円)
+                        if (lowerName.includes('salary') || lowerName.includes('年収')) {
+                            if (num < 200 || num > 10000) {
+                                console.warn(`[Jobscope] 給与が範囲外: ${prop.name}=${num}万円`);
+                                num = NaN; // nullに変換
+                            }
+                        }
+                        // 平均年齢の範囲チェック (18-70歳)
+                        if (lowerName.includes('avg_age') || lowerName.includes('平均年齢')) {
+                            if (num < 18 || num > 70) {
+                                console.warn(`[Jobscope] 平均年齢が範囲外: ${prop.name}=${num}歳`);
+                                num = NaN;
+                            }
+                        }
+                    }
+
                     notionProperties[prop.name] = { number: isNaN(num) || num === '' ? null : Number(num) };
                     break;
                 case 'select':
                     const strValSelect = ensureString(value);
-                    if (strValSelect) notionProperties[prop.name] = { select: { name: strValSelect } };
+                    if (strValSelect) {
+                        // === フェーズ2 改善: Select選択肢検証 ===
+                        if (prop.options && prop.options.length > 0) {
+                            const lowerOptions = prop.options.map(o => o.toLowerCase());
+                            if (!lowerOptions.includes(strValSelect.toLowerCase())) {
+                                console.warn(`[Jobscope] 選択肢にない値: ${prop.name}="${strValSelect}" (有効: ${prop.options.join(', ')})`);
+                            }
+                        }
+                        notionProperties[prop.name] = { select: { name: strValSelect } };
+                    }
                     break;
                 case 'multi_select':
                     const vals = Array.isArray(value) ? value : (value ? [value] : []);
@@ -176,10 +205,34 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                     notionProperties[prop.name] = { checkbox: Boolean(value) };
                     break;
                 case 'url':
-                    notionProperties[prop.name] = { url: ensureString(value) || null };
+                    // === フェーズ2 改善: URL形式のバリデーション ===
+                    const urlStr = ensureString(value);
+                    if (urlStr) {
+                        try {
+                            new URL(urlStr);
+                            notionProperties[prop.name] = { url: urlStr };
+                        } catch {
+                            console.warn(`[Jobscope] 無効なURL: ${prop.name}=${urlStr}`);
+                            notionProperties[prop.name] = { url: null };
+                        }
+                    } else {
+                        notionProperties[prop.name] = { url: null };
+                    }
                     break;
                 case 'email':
-                    notionProperties[prop.name] = { email: ensureString(value) || null };
+                    // === フェーズ2 改善: Email形式のバリデーション ===
+                    const emailStr = ensureString(value);
+                    if (emailStr) {
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (emailRegex.test(emailStr)) {
+                            notionProperties[prop.name] = { email: emailStr };
+                        } else {
+                            console.warn(`[Jobscope] 無効なEmail: ${prop.name}=${emailStr}`);
+                            notionProperties[prop.name] = { email: null };
+                        }
+                    } else {
+                        notionProperties[prop.name] = { email: null };
+                    }
                     break;
                 case 'phone_number':
                     notionProperties[prop.name] = { phone_number: ensureString(value) || null };
@@ -214,6 +267,58 @@ export async function saveJobToNotion(
     if (titleProp && !properties[titleProp.name]) {
         const fallbackTitle = data.properties.company || data.properties.title || "Untitled Job";
         properties[titleProp.name] = { title: [{ text: { content: ensureString(fallbackTitle) } }] };
+    }
+
+    // === 口コミサイトURL自動生成 ===
+    const companyName = ensureString(data.properties.company || data.properties.Name || '');
+    if (companyName) {
+        // ㈱ → 株式会社 に戻して検索精度を向上
+        const searchCompanyName = companyName
+            .replace(/㈱/g, '株式会社')
+            .replace(/（株）/g, '株式会社');
+        const encodedName = encodeURIComponent(searchCompanyName);
+
+        // ヘルパー: スキーマからURL型プロパティを名前で検索（大文字小文字無視）
+        const findUrlProp = (names: string[]) => {
+            return schema.properties.find(p =>
+                p.type === 'url' && names.some(n => p.name.toLowerCase() === n.toLowerCase())
+            );
+        };
+
+        // OpenWork
+        const openworkProp = findUrlProp(['OpenWork', 'openwork', 'Openwork']);
+        if (openworkProp) {
+            properties[openworkProp.name] = { url: `https://www.openwork.jp/company_list?src_str=${encodedName}&sort=1&ct=com` };
+            console.log('[Jobscope] OpenWork URL設定:', openworkProp.name);
+        }
+
+        // 転職会議
+        const jobtalkProp = findUrlProp(['転職会議', 'jobtalk', 'Jobtalk']);
+        if (jobtalkProp) {
+            properties[jobtalkProp.name] = { url: `https://jobtalk.jp/companies/search?keyword=${encodedName}&keyword_search_form=1&include_no_answers=1&include_bankrupted=1` };
+            console.log('[Jobscope] 転職会議 URL設定:', jobtalkProp.name);
+        }
+
+        // Wantedly
+        const wantedlyProp = findUrlProp(['Wantedly', 'wantedly']);
+        if (wantedlyProp) {
+            properties[wantedlyProp.name] = { url: `https://www.wantedly.com/search?query=${encodedName}` };
+            console.log('[Jobscope] Wantedly URL設定:', wantedlyProp.name);
+        }
+
+        // OpenMoney (年収DB)
+        const openmoneyProp = findUrlProp(['OpenMoney', 'openmoney', 'Openmoney']);
+        if (openmoneyProp) {
+            properties[openmoneyProp.name] = { url: `https://openmoney.jp/search?query=${encodedName}` };
+            console.log('[Jobscope] OpenMoney URL設定:', openmoneyProp.name);
+        }
+
+        // OpenWork年収
+        const openworkSalaryProp = findUrlProp(['OpenWork年収', 'openwork年収', 'OpenWork Salary']);
+        if (openworkSalaryProp) {
+            properties[openworkSalaryProp.name] = { url: `https://www.openwork.jp/company_list?src_str=${encodedName}&sort=1&ct=comlist` };
+            console.log('[Jobscope] OpenWork年収 URL設定:', openworkSalaryProp.name);
+        }
     }
 
     // Include children (content)
@@ -280,4 +385,59 @@ export async function updateJobInNotion(
     // User can manually create new page for re-analysis or we can implement explicit 'append' flag later.
 
     return { url: result.url, id: result.id };
+}
+
+// === フェーズ3 改善: 重複求人の検出 ===
+export interface DuplicateCheckResult {
+    isDuplicate: boolean;
+    existingPageId: string | null;
+    existingPageUrl: string | null;
+}
+
+export async function checkDuplicateJob(
+    apiKey: string,
+    databaseId: string,
+    jobUrl: string
+): Promise<DuplicateCheckResult> {
+    try {
+        const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Notion-Version': '2022-06-28',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filter: {
+                    or: [
+                        { property: 'URL', url: { equals: jobUrl } },
+                        { property: 'Job URL', url: { equals: jobUrl } },
+                        { property: 'Link', url: { equals: jobUrl } },
+                    ]
+                },
+                page_size: 1
+            })
+        });
+
+        if (!response.ok) {
+            console.warn('[Jobscope] 重複チェック失敗:', await response.text());
+            return { isDuplicate: false, existingPageId: null, existingPageUrl: null };
+        }
+
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+            const existingPage = data.results[0];
+            console.log('[Jobscope] 重複求人を検出:', existingPage.url);
+            return {
+                isDuplicate: true,
+                existingPageId: existingPage.id,
+                existingPageUrl: existingPage.url
+            };
+        }
+
+        return { isDuplicate: false, existingPageId: null, existingPageUrl: null };
+    } catch (error) {
+        console.warn('[Jobscope] 重複チェックエラー:', error);
+        return { isDuplicate: false, existingPageId: null, existingPageUrl: null };
+    }
 }
