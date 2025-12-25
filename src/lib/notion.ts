@@ -161,6 +161,26 @@ function mapProperties(data: AnalyzeResult, schema: NotionSchema, jobUrl: string
                 case 'number':
                     let num = value;
                     if (typeof num === 'string') num = parseFloat(num.replace(/[^0-9.-]/g, ''));
+
+                    // === フェーズ1 改善: 数値範囲検証 ===
+                    if (!isNaN(num) && num !== '') {
+                        const lowerName = prop.name.toLowerCase();
+                        // 給与の範囲チェック (200-10000万円)
+                        if (lowerName.includes('salary') || lowerName.includes('年収')) {
+                            if (num < 200 || num > 10000) {
+                                console.warn(`[Jobscope] 給与が範囲外: ${prop.name}=${num}万円`);
+                                num = NaN; // nullに変換
+                            }
+                        }
+                        // 平均年齢の範囲チェック (18-70歳)
+                        if (lowerName.includes('avg_age') || lowerName.includes('平均年齢')) {
+                            if (num < 18 || num > 70) {
+                                console.warn(`[Jobscope] 平均年齢が範囲外: ${prop.name}=${num}歳`);
+                                num = NaN;
+                            }
+                        }
+                    }
+
                     notionProperties[prop.name] = { number: isNaN(num) || num === '' ? null : Number(num) };
                     break;
                 case 'select':

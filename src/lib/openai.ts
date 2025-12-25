@@ -171,6 +171,34 @@ function sanitizeAnalyzeResult(result: AnalyzeResult): AnalyzeResult {
         sanitizedProps[key] = flattenValue(value);
     }
 
+    // === フェーズ1 改善: 給与範囲の整合性チェック ===
+    if (sanitizedProps.salary_min != null && sanitizedProps.salary_max != null) {
+        const min = Number(sanitizedProps.salary_min);
+        const max = Number(sanitizedProps.salary_max);
+        if (!isNaN(min) && !isNaN(max) && min > max) {
+            // 値を入れ替え
+            [sanitizedProps.salary_min, sanitizedProps.salary_max] = [max, min];
+            console.log('[Jobscope] 給与範囲を修正: min/max を入れ替えました');
+        }
+    }
+
+    // === フェーズ1 改善: スキル配列の上限強制 (最大10個) ===
+    if (Array.isArray(sanitizedProps.skills) && sanitizedProps.skills.length > 10) {
+        sanitizedProps.skills = sanitizedProps.skills.slice(0, 10);
+        console.log('[Jobscope] スキル配列を10個に制限しました');
+    }
+
+    // === フェーズ1 改善: 企業名の標準化 ===
+    if (sanitizedProps.company && typeof sanitizedProps.company === 'string') {
+        let company = sanitizedProps.company.trim();
+        // 株式会社 → ㈱ に統一
+        company = company
+            .replace(/株式会社/g, '㈱')
+            .replace(/\(株\)/g, '㈱')
+            .replace(/（株）/g, '㈱');
+        sanitizedProps.company = company;
+    }
+
     return {
         ...result,
         properties: sanitizedProps

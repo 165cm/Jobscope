@@ -35,5 +35,17 @@
                 "src/content.ts"
             ]
         }
+    ],
+    "web_accessible_resources": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "resources": [
+                "**/*",
+                "*"
+            ],
+            "use_dynamic_url": false
+        }
     ]
 }
