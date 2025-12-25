@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search } from 'lucide-react';
-import { analyzeJobPost, type AnalyzeResult } from './lib/openai';
+import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search, Building2 } from 'lucide-react';
+import { analyzeJobPost, summarizeCompanyWebsite, type AnalyzeResult, type CompanySummary } from './lib/openai';
 import { saveJobToNotion, updateJobInNotion } from './lib/notion';
 import { fetchNotionSchema, loadLocalSchema, saveLocalSchema, compareSchemas, hasSchemaDiff, generatePromptFromSchema, type NotionSchema, type SchemaDiff } from './lib/schema';
 import { DynamicFields } from './components/DynamicFields';
@@ -20,6 +20,10 @@ function App() {
   const [schema, setSchema] = useState<NotionSchema | null>(null);
   const [schemaDiff, setSchemaDiff] = useState<SchemaDiff | null>(null);
   const [showDiffAlert, setShowDiffAlert] = useState(false);
+
+  // Phase 1.3: 企業HP要約 state
+  const [companySummary, setCompanySummary] = useState<CompanySummary | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
 
   // Check schema on mount
   useEffect(() => {
@@ -187,6 +191,58 @@ function App() {
     });
   };
 
+  // Phase 1.3: 企業HP要約ハンドラー
+  const handleSummarizeCompany = async () => {
+    if (!result) return;
+    const companyName = result.properties[findKey(['company', 'Company', 'Name', '会社名', '企業名', 'Business Name'])];
+    const companyWebsite = result.properties[findKey(['site', 'web', 'Web', 'website', 'Website', '会社HP'])];
+
+    if (!companyName) {
+      setError("企業名が見つかりません");
+      return;
+    }
+
+    setSummarizing(true);
+    setError(null);
+
+    try {
+      const storage = await chrome.storage.local.get(['openai_api_key', 'openai_model']);
+      const apiKey = storage.openai_api_key as string;
+      if (!apiKey) {
+        setError("OpenAI API Keyが設定されていません");
+        return;
+      }
+
+      const summary = await summarizeCompanyWebsite(
+        companyName,
+        companyWebsite || companyName, // URLがなければ企業名で推測
+        apiKey,
+        storage.openai_model as string | undefined
+      );
+      setCompanySummary(summary);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "企業情報の取得に失敗しました");
+    } finally {
+      setSummarizing(false);
+    }
+  };
+
+  // Helper to resolve property keys (handle aliases) - moved before usage
+  const findKey = (candidates: string[]) => {
+    if (!result) return candidates[0];
+    for (const key of candidates) {
+      if (result.properties[key] !== undefined) return key;
+    }
+    for (const key of candidates) {
+      const lower = key.toLowerCase();
+      for (const propKey of Object.keys(result.properties)) {
+        if (propKey.toLowerCase() === lower) return propKey;
+      }
+    }
+    return candidates[0];
+  };
+
   const openOptions = () => {
     if (chrome.runtime.openOptionsPage) {
       chrome.runtime.openOptionsPage();
@@ -340,6 +396,46 @@ function App() {
                 >
                   LinkedIn <ExternalLink size={10} />
                 </a>
+              </div>
+
+              {/* Phase 1.3: AI要約ボタン */}
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                {!companySummary ? (
+                  <button
+                    onClick={handleSummarizeCompany}
+                    disabled={summarizing}
+                    className="w-full px-3 py-2 bg-purple-100 text-purple-700 text-xs rounded hover:bg-purple-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {summarizing ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        企業情報を分析中...
+                      </>
+                    ) : (
+                      <>
+                        <Building2 size={14} />
+                        AI で企業を分析
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="space-y-2 text-xs">
+                    <div className="font-medium text-gray-700">📊 企業分析結果</div>
+                    <p className="text-gray-600">{companySummary.summary}</p>
+                    {companySummary.culture.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {companySummary.culture.map((c, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-[10px]">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {companySummary.businessDescription && (
+                      <p className="text-gray-500 italic">{companySummary.businessDescription}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

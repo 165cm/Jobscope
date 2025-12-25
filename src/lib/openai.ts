@@ -308,3 +308,73 @@ export function calculateConfidenceScore(result: AnalyzeResult): number {
     // スコアを0-100の範囲に収める
     return Math.max(0, Math.min(100, score));
 }
+
+// === Phase 1.3: 企業HP要約 ===
+export interface CompanySummary {
+    summary: string;
+    culture: string[];
+    businessDescription: string;
+    fetchedAt: number;
+}
+
+export async function summarizeCompanyWebsite(
+    companyName: string,
+    websiteUrl: string,
+    apiKey: string,
+    model?: string
+): Promise<CompanySummary> {
+    const modelToUse = model || MODEL_NAME;
+
+    const prompt = `以下の企業について、Webサイトから得られる情報を基に要約してください。
+
+企業名: ${companyName}
+企業HP: ${websiteUrl}
+
+以下のJSON形式で出力してください:
+{
+  "summary": "企業の概要（2-3文）",
+  "culture": ["カルチャーの特徴1", "特徴2", "特徴3"],
+  "businessDescription": "主な事業内容（1-2文）"
+}
+
+注意:
+- 公開情報に基づいて推測してください
+- 日本語で出力してください
+- 事実に基づいた客観的な情報を提供してください`;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: modelToUse,
+            messages: [
+                { role: "system", content: "You are a helpful assistant that summarizes company information. Output JSON only." },
+                { role: "user", content: prompt },
+            ],
+            response_format: { type: "json_object" },
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Failed to summarize company");
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+
+    if (!content) {
+        throw new Error("No content from OpenAI");
+    }
+
+    const result = JSON.parse(content);
+    return {
+        summary: result.summary || "情報を取得できませんでした",
+        culture: result.culture || [],
+        businessDescription: result.businessDescription || "",
+        fetchedAt: Date.now()
+    };
+}
