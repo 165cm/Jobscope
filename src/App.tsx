@@ -316,7 +316,7 @@ function App() {
                   </a>
                   {/* Phase 2.2: Wantedly記事検索 */}
                   <a
-                    href={`https://www.wantedly.com/search?q=${encodeURIComponent(searchCompanyName)}&tab=about`}
+                    href={`https://www.wantedly.com/search?query=${encodeURIComponent(searchCompanyName)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded hover:bg-sky-200 flex items-center gap-1"

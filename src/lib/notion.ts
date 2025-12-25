@@ -269,6 +269,34 @@ export async function saveJobToNotion(
         properties[titleProp.name] = { title: [{ text: { content: ensureString(fallbackTitle) } }] };
     }
 
+    // === 口コミサイトURL自動生成 ===
+    const companyName = ensureString(data.properties.company || data.properties.Name || '');
+    if (companyName) {
+        // ㈱ → 株式会社 に戻して検索精度を向上
+        const searchCompanyName = companyName
+            .replace(/㈱/g, '株式会社')
+            .replace(/（株）/g, '株式会社');
+        const encodedName = encodeURIComponent(searchCompanyName);
+
+        // OpenWork (スキーマに 'OpenWork' プロパティがあれば設定)
+        const openworkProp = schema.properties.find(p => p.name === 'OpenWork' && p.type === 'url');
+        if (openworkProp && !properties['OpenWork']) {
+            properties['OpenWork'] = { url: `https://www.openwork.jp/company_list?src_str=${encodedName}&sort=1&ct=com` };
+        }
+
+        // 転職会議 (スキーマに '転職会議' プロパティがあれば設定)
+        const jobtalkProp = schema.properties.find(p => p.name === '転職会議' && p.type === 'url');
+        if (jobtalkProp && !properties['転職会議']) {
+            properties['転職会議'] = { url: `https://jobtalk.jp/companies/search?keyword=${encodedName}&keyword_search_form=1&include_no_answers=1&include_bankrupted=1` };
+        }
+
+        // Wantedly (スキーマに 'Wantedly' または 'wantedly' プロパティがあれば設定)
+        const wantedlyProp = schema.properties.find(p => (p.name === 'Wantedly' || p.name === 'wantedly') && p.type === 'url');
+        if (wantedlyProp && !properties[wantedlyProp.name]) {
+            properties[wantedlyProp.name] = { url: `https://www.wantedly.com/search?query=${encodedName}` };
+        }
+    }
+
     // Include children (content)
     const children = data.markdown_content ? markdownToBlocks(data.markdown_content) : [];
 
