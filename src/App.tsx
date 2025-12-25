@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search } from 'lucide-react';
+import { Briefcase, Loader2, Sparkles, AlertCircle, Save, ExternalLink, RefreshCw, Settings, AlertTriangle, X, Search, Copy } from 'lucide-react';
 import { analyzeJobPost, type AnalyzeResult } from './lib/openai';
-import { saveJobToNotion, updateJobInNotion } from './lib/notion';
+import { saveJobToNotion, updateJobInNotion, checkDuplicateJob } from './lib/notion';
 import { fetchNotionSchema, loadLocalSchema, saveLocalSchema, compareSchemas, hasSchemaDiff, generatePromptFromSchema, type NotionSchema, type SchemaDiff } from './lib/schema';
 import { DynamicFields } from './components/DynamicFields';
 
@@ -20,6 +20,9 @@ function App() {
   const [schema, setSchema] = useState<NotionSchema | null>(null);
   const [schemaDiff, setSchemaDiff] = useState<SchemaDiff | null>(null);
   const [showDiffAlert, setShowDiffAlert] = useState(false);
+
+  // Duplicate check state
+  const [duplicateInfo, setDuplicateInfo] = useState<{ pageId: string; pageUrl: string } | null>(null);
 
 
 
@@ -124,6 +127,22 @@ function App() {
         }
       } catch (e) {
         throw new Error("Could not read page content. Try reloading the page.");
+      }
+
+      // Check for duplicate URL in Notion
+      const notionStorage = await chrome.storage.local.get(['notion_api_key', 'notion_db_id']);
+      if (notionStorage.notion_api_key && notionStorage.notion_db_id) {
+        const dupResult = await checkDuplicateJob(
+          notionStorage.notion_api_key as string,
+          notionStorage.notion_db_id as string,
+          pageUrl
+        );
+        if (dupResult.isDuplicate && dupResult.existingPageId && dupResult.existingPageUrl) {
+          setDuplicateInfo({ pageId: dupResult.existingPageId, pageUrl: dupResult.existingPageUrl });
+          setSavedPageId(dupResult.existingPageId); // Set to update mode
+        } else {
+          setDuplicateInfo(null);
+        }
       }
 
       const data = await analyzeJobPost(pageText, pageUrl, apiKeyStr, userProfile, finalPrompt, model);
@@ -244,6 +263,25 @@ function App() {
               更新
             </button>
             <button onClick={() => setShowDiffAlert(false)} className="p-1 hover:bg-yellow-200 rounded">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Duplicate URL Alert */}
+        {duplicateInfo && (
+          <div className="bg-blue-50 border-b border-blue-200 p-3 flex items-center gap-2 text-xs text-blue-800">
+            <Copy size={16} />
+            <span className="flex-1">この求人は既にNotionに登録されています（更新モード）</span>
+            <a
+              href={duplicateInfo.pageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2 py-1 bg-blue-200 rounded hover:bg-blue-300 text-blue-900 flex items-center gap-1"
+            >
+              開く <ExternalLink size={10} />
+            </a>
+            <button onClick={() => { setDuplicateInfo(null); setSavedPageId(null); }} className="p-1 hover:bg-blue-200 rounded" title="新規として保存">
               <X size={14} />
             </button>
           </div>

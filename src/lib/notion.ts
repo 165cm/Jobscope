@@ -410,6 +410,7 @@ export async function checkDuplicateJob(
             body: JSON.stringify({
                 filter: {
                     or: [
+                        { property: 'Source', url: { equals: jobUrl } },
                         { property: 'URL', url: { equals: jobUrl } },
                         { property: 'Job URL', url: { equals: jobUrl } },
                         { property: 'Link', url: { equals: jobUrl } },
