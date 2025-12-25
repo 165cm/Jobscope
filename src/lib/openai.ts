@@ -80,6 +80,18 @@ Extract these fields:
 - skills: Array of strings. Technical skills mentioned in job (max 10)
 - match: String. One of: excellent, good, fair, poor (compare with user profile if provided)
 
+**企業リサーチリンク (自動生成):**
+Use the company name (NOT abbreviated) to generate these research URLs:
+- company_website: String (URL). Try to infer the company's official website URL from the company name. For well-known companies, use the standard domain (e.g., "株式会社サイバーエージェント" → "https://www.cyberagent.co.jp"). If unknown, leave empty.
+- openwork_url: String (URL). Format: https://www.openwork.jp/search?query={full_company_name_without_㈱}
+- lighthouse_url: String (URL). Format: https://en-hyouban.com/company/search/?keyword={full_company_name_without_㈱}
+- careerconnection_url: String (URL). Format: https://careerconnection.jp/company/search?q={full_company_name_without_㈱}
+- search_x: String (URL). Format: https://x.com/search?q={full_company_name_without_㈱}+評判
+- search_note: String (URL). Format: https://note.com/search?q={full_company_name_without_㈱}
+- search_linkedin: String (URL). Format: https://www.linkedin.com/search/results/companies/?keywords={full_company_name_without_㈱}
+
+**IMPORTANT:** For all auto-generated URLs, use the FULL company name WITHOUT the "㈱" abbreviation (e.g., if company is "㈱ABC", use "株式会社ABC" or "ABC" in URLs).
+
 ${DEFAULT_LOGIC}
 {
   "properties": {
@@ -102,7 +114,14 @@ ${DEFAULT_LOGIC}
     "feedback": true,
     "teamwork": true,
     "long_commute": false,
-    "overwork": false
+    "overwork": false,
+    "company_website": "https://example.com",
+    "openwork_url": "https://www.openwork.jp/search?query=株式会社Example",
+    "lighthouse_url": "https://en-hyouban.com/company/search/?keyword=株式会社Example",
+    "careerconnection_url": "https://careerconnection.jp/company/search?q=株式会社Example",
+    "search_x": "https://x.com/search?q=株式会社Example+評判",
+    "search_note": "https://note.com/search?q=株式会社Example",
+    "search_linkedin": "https://www.linkedin.com/search/results/companies/?keywords=株式会社Example"
   },
   "markdown_content": "# Job Summary..."
 }`;
