@@ -285,7 +285,7 @@ function App() {
             </select>
           </div>
 
-          {/* === Phase 1: 口コミ・SNS検索リンク === */}
+          {/* === Phase 1: 口コミサイトリンク === */}
           {result.properties[companyKey] && (() => {
             // ㈱ → 株式会社 に戻して検索精度を向上
             const searchCompanyName = String(result.properties[companyKey])
@@ -295,12 +295,11 @@ function App() {
             return (
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                  <Search size={12} /> 企業リサーチ
+                  <Search size={12} /> 口コミを見る
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {/* 口コミサイト */}
                   <a
-                    href={`https://www.openwork.jp/search/?q=${encodeURIComponent(searchCompanyName)}`}
+                    href={`https://www.openwork.jp/company_list?src_str=${encodeURIComponent(searchCompanyName)}&sort=1&ct=com`}
                     target="_blank"
                     rel="noreferrer"
                     className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 flex items-center gap-1"
@@ -308,45 +307,12 @@ function App() {
                     OpenWork <ExternalLink size={10} />
                   </a>
                   <a
-                    href={`https://jobtalk.jp/searches?q=${encodeURIComponent(searchCompanyName)}`}
+                    href={`https://jobtalk.jp/companies/search?keyword=${encodeURIComponent(searchCompanyName)}&keyword_search_form=1&include_no_answers=1&include_bankrupted=1`}
                     target="_blank"
                     rel="noreferrer"
                     className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded hover:bg-orange-200 flex items-center gap-1"
                   >
                     転職会議 <ExternalLink size={10} />
-                  </a>
-                  <a
-                    href={`https://www.glassdoor.com/Search/results.htm?keyword=${encodeURIComponent(searchCompanyName)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 flex items-center gap-1"
-                  >
-                    Glassdoor <ExternalLink size={10} />
-                  </a>
-                  {/* SNS検索 */}
-                  <a
-                    href={`https://x.com/search?q=${encodeURIComponent(searchCompanyName)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 flex items-center gap-1"
-                  >
-                    X (Twitter) <ExternalLink size={10} />
-                  </a>
-                  <a
-                    href={`https://note.com/search?q=${encodeURIComponent(searchCompanyName)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded hover:bg-emerald-200 flex items-center gap-1"
-                  >
-                    note <ExternalLink size={10} />
-                  </a>
-                  <a
-                    href={`https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(searchCompanyName)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded hover:bg-sky-200 flex items-center gap-1"
-                  >
-                    LinkedIn <ExternalLink size={10} />
                   </a>
                 </div>
               </div>
